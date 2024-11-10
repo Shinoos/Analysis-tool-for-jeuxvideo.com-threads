@@ -3,6 +3,7 @@ void function() {
   let _count = new Map();
   let _totalMessages = 0;
   let _totalPages = 0;
+  const _startTime = Date.now();
 
   handlePage();
 
@@ -55,8 +56,10 @@ void function() {
   }
 
   function showResults() {
+    const totalTime = (Date.now() - _startTime) / 1000;
     let results = `Total de messages analysés : ${_totalMessages}\n`;
-    results += `Total de pages analysées : ${_totalPages}\n\n`;
+    results += `Total de pages analysées : ${_totalPages}\n`;
+    results += `Durée de l'analyse : ${totalTime.toFixed(2)} secondes\n\n`;
     let sorted = [..._count.entries()].sort((a, b) => b[1] - a[1]);
     let place = 1;
     sorted.forEach(([pseudo, count]) => {

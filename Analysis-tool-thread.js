@@ -56,10 +56,27 @@ void function() {
   }
 
   function showResults() {
-    const totalTime = (Date.now() - _startTime) / 1000;
+    const totalTime = Date.now() - _startTime;
+    const hours = Math.floor(totalTime / (1000 * 60 * 60));
+    const minutes = Math.floor((totalTime % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((totalTime % (1000 * 60)) / 1000);
+
+    let durationString = "";
+    switch (true) {
+      case hours > 0:
+        durationString = `${hours} h ${minutes} min ${seconds} sec`;
+        break;
+      case minutes > 0:
+        durationString = `${minutes} min ${seconds} sec`;
+        break;
+      default:
+        durationString = `${seconds} sec`;
+    }
+
     let results = `Total de messages analysés : ${_totalMessages}\n`;
     results += `Total de pages analysées : ${_totalPages}\n`;
-    results += `Durée de l'analyse : ${totalTime.toFixed(2)} secondes\n\n`;
+    results += `Durée de l'analyse : ${durationString}\n\n`;
+
     let sorted = [..._count.entries()].sort((a, b) => b[1] - a[1]);
     let place = 1;
     sorted.forEach(([pseudo, count]) => {

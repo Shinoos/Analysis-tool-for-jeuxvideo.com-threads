@@ -62,31 +62,36 @@ void function() {
   }
 
   function showResults() {
-  const totalTime = Date.now() - _startTime;
-  const durationString = new Date(totalTime).toISOString().substr(11, 8);
+    const totalTime = Date.now() - _startTime;
+    const durationString = new Date(totalTime).toISOString().substr(11, 8);
 
-  let results = `Total de messages analysés : ${_totalMessages}\n`;
-  results += `Total de pages analysées : ${_totalPages}\n`;
-  results += `Durée de l'analyse : ${durationString}\n\n`;
+    let results = `Total de messages analysés : ${_totalMessages}\n`;
+    results += `Total de pages analysées : ${_totalPages}\n`;
+    results += `Durée de l'analyse : ${durationString}\n\n`;
 
-  let sorted = [..._count.entries()].sort((a, b) => b[1] - a[1]);
-  let place = 1;
-  sorted.forEach(([pseudo, count]) => {
-    results += `${place} : ${pseudo} -> ${count} messages\n`;
-    place++;
-  });
+    let sorted = [..._count.entries()].sort((a, b) => b[1] - a[1]);
+    let place = 1;
+    sorted.forEach(([pseudo, count]) => {
+      results += `${place} : ${pseudo} -> ${count} messages\n`;
+      place++;
+    });
 
-  console.log(results);
-}
-
+    console.log(results);
+  }
 
   function pauseAnalysis() {
-    _isPaused = true;
-    console.log('Pause demandée.');
+    if (_isPaused) {
+      console.log('L\'analyse est déjà en pause.');
+    } else {
+      _isPaused = true;
+      console.log('Pause demandée.');
+    }
   }
 
   function resumeAnalysis() {
-    if (_isPaused) {
+    if (!_isPaused) {
+      console.log('L\'analyse n\'est pas en pause.');
+    } else {
       _isPaused = false;
       console.log('Reprise de l\'analyse.');
       handlePage();

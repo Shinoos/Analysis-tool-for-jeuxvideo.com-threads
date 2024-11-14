@@ -1,5 +1,5 @@
-void function() {
-  let _currentPage = 1;
+function startAnalysis(initialPage = 1) {
+  let _currentPage = initialPage;
   let _count = new Map();
   let _totalMessages = 0;
   let _totalPages = 0;
@@ -100,4 +100,7 @@ void function() {
 
   window.pauseAnalysis = pauseAnalysis;
   window.resumeAnalysis = resumeAnalysis;
-}();
+}
+
+// Le script peut se démarrer à partir de n'importe quelle page, exemple pour la page 1000 : startAnalysis(1000);
+startAnalysis();

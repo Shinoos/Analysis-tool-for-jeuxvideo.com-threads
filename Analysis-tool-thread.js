@@ -8,7 +8,7 @@ function startAnalysis(initialPage = 1) {
 
   handlePage();
 
-  async function handlePage() {
+  async function handlePage(attempt = 1) {
     if (_isPaused) {
       console.log('Analyse en pause.');
       return;
@@ -51,13 +51,21 @@ function startAnalysis(initialPage = 1) {
       _currentPage++;
 
       if (duration > 2000) {
-        console.log('Limitation par les serveurs jeuxvideo.com, pause de 10 secondes...');
-        setTimeout(handlePage, 10000);
+        console.log('Limitation par les serveurs jeuxvideo.com, pause de 7 secondes...');
+        setTimeout(() => handlePage(), 7000);
       } else {
         handlePage();
       }
     } catch (error) {
       console.error(`Erreur lors de la récupération de la page ${_currentPage}:`, error);
+
+      if (attempt < 20) {
+        const delay = Math.min(2 ** attempt * 100, 5000);
+        console.log(`Nouvelle tentative pour la page ${_currentPage} dans ${delay} ms...`);
+        setTimeout(() => handlePage(attempt + 1), delay);
+      } else {
+        console.error('Toujours en échec malgré plusieurs tentatives. Arrêt du script.');
+      }
     }
   }
 

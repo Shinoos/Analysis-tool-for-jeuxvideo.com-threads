@@ -262,7 +262,14 @@
     let path = splitPath.join("-");
 
     try {
+      const startTime = Date.now();
       let response = await fetch(path);
+
+      const loadTime = Date.now() - startTime;
+      if (loadTime > 2000) {
+        console.log(`Rate limit détecté (${loadTime} ms). Pause de 10 secondes...`);
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+      }
 
       if (response.redirected) {
         updateResults();

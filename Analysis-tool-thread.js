@@ -9,11 +9,7 @@ function startAnalysis(initialPage = 1) {
   handlePage();
 
   async function handlePage(attempt = 1) {
-    if (_isPaused) {
-      console.log('Analyse en pause.');
-      return;
-    }
-
+    
     console.log(`Page ${_currentPage}…`);
     let splitPath = location.pathname.split('-');
     splitPath[3] = _currentPage;

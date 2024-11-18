@@ -48,6 +48,13 @@ function startAnalysis(initialPage = 1) {
 
       _totalMessages += messagesOnPage;
       _totalPages++;
+
+      if (_isPaused) {
+        console.log(`Analyse en pause...`);
+        _currentPage++;
+        return;
+      }
+
       _currentPage++;
 
       if (duration > 2000) {
@@ -92,7 +99,7 @@ function startAnalysis(initialPage = 1) {
       console.log('L\'analyse est déjà en pause.');
     } else {
       _isPaused = true;
-      console.log('Pause demandée.');
+      console.log('Pause demandée. Elle sera effective après l’analyse de la page en cours.');
     }
   }
 
@@ -101,7 +108,7 @@ function startAnalysis(initialPage = 1) {
       console.log('L\'analyse n\'est pas en pause.');
     } else {
       _isPaused = false;
-      console.log('Reprise de l\'analyse.');
+      console.log('Reprise de l\'analyse...');
       handlePage();
     }
   }

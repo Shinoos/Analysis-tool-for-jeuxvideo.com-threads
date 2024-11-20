@@ -1,49 +1,31 @@
-(async function main() {
-  let _currentPage = 1;
-  let _count = new Map();
-  let _totalMessages = 0;
-  let _totalPages = 0;
-  let _maxPages = 0;
-  const _startTime = Date.now();
-  let _isPaused = false;
-  const topicTitleElement = document.querySelector("#bloc-title-forum");
-  const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
-  const userPageInput = prompt("À partir de quelle page souhaitez-vous commencer l'analyse ?\nLaissez vide pour analyser tout le topic depuis la page 1.");
+    (async function main() {
+    const scriptVersion = "v1.0.1";
+    let _currentPage = 1;
+    let _count = new Map();
+    let _totalMessages = 0;
+    let _totalPages = 0;
+    let _isPaused = false;
+    const pagination = document.querySelector(".bloc-liste-num-page");
+    const _maxPages = pagination ? (pagination.querySelectorAll("a.xXx.lien-jv").length > 0 ? parseInt(pagination.querySelectorAll("a.xXx.lien-jv")[Math.max(0, pagination.querySelectorAll("a.xXx.lien-jv").length - (pagination.querySelectorAll("a.xXx.lien-jv").length > 11 ? 2 : 1))].textContent, 10) || 1 : 1) : 1;
+    const _startTime = Date.now();
+    const topicTitleElement = document.querySelector("#bloc-title-forum");
+    const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
+    const userPageInput = prompt("À partir de quelle page souhaitez-vous commencer l'analyse ?\nLaissez vide pour analyser tout le topic depuis la page 1.");
 
-  if (userPageInput === null) {
-    console.log("Analyse annulée par l'utilisateur.");
-    return;
-  } else if (userPageInput.trim() !== "") {
-    _currentPage = parseInt(userPageInput, 10) || 1;
-    if (_currentPage < 1) _currentPage = 1;
-  }
-
-  const pagination = document.querySelector(".bloc-liste-num-page");
-  if (pagination) {
-    const pageLinks = pagination.querySelectorAll("a.xXx.lien-jv");
-    if (pageLinks.length > 0) {
-      if (pageLinks.length > 11) {
-        const beforeLastLink = pageLinks[pageLinks.length - 2];
-        _maxPages = parseInt(beforeLastLink.textContent, 10) || 1;
-      } else {
-        const lastLink = pageLinks[pageLinks.length - 1];
-        _maxPages = parseInt(lastLink.textContent, 10) || 1;
-      }
+    if (userPageInput === null || userPageInput.trim() === "") {
+    _currentPage = 1;
     } else {
-      _maxPages = 1;
+    _currentPage = Math.max(1, parseInt(userPageInput, 10) || 1);
     }
-  } else {
-    _maxPages = 1;
-  }
+    const uiWindow = window.open("", "_blank", "width=800,height=600");
 
-  const uiWindow = window.open("", "_blank", "width=800,height=600");
-  uiWindow.document.write(
-    `<!DOCTYPE html>
-  <html lang="en">
+    uiWindow.document.write(
+    `<!DOCTYPE html> 
+    <html lang="en">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Analysis-tool-for-jeuxvideo.com-threads</title>
+      <title>Analysis-tool-for-jeuxvideo.com-threads.js ${scriptVersion}</title> 
       <style>
         body { 
           font-family: Arial, sans-serif; 
@@ -225,168 +207,148 @@
   </html>`
   );
 
-  const progressBar = uiWindow.document.querySelector(".progress-bar .fill");
-  const summaryElement = uiWindow.document.querySelector("#summary");
-  const resultsTable = uiWindow.document.querySelector("#results");
-  const statusElement = uiWindow.document.querySelector("#status");
+    const progressBar = uiWindow.document.querySelector(".progress-bar .fill");
+    const summaryElement = uiWindow.document.querySelector("#summary");
+    const resultsTable = uiWindow.document.querySelector("#results");
+    const statusElement = uiWindow.document.querySelector("#status");
 
-  window.pauseAnalysis = function () {
-    _isPaused = true;
-    updateStatus("Analyse mise en pause.", "orange", true);
-    console.log("Analyse mise en pause.");
-  };
+    window.pauseAnalysis = function () {
+        _isPaused = true;
+        updateStatus("Analyse mise en pause.", "orange", true);
+        console.log("Pause demandée.");
+    };
 
-  window.resumeAnalysis = function () {
-    if (!_isPaused) return;
-    _isPaused = false;
-    updateStatus("Analyse en cours...");
-    console.log("Analyse reprise.");
-    handlePage();
-  };
-
-  function updateStatus(text, className = "green", isPaused = false) {
-    const spinner = '<span id="spinner"></span>';
-    statusElement.innerHTML = `${isPaused ? "" : spinner} ${text}`;
-    statusElement.className = `status ${className}`;
-  }
-
-  async function handlePage(attempt = 1) {
-    if (_isPaused) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      return handlePage(attempt);
-    }
-
-    updateSummary();
-    let splitPath = location.pathname.split("-");
-    splitPath[3] = _currentPage;
-    let path = splitPath.join("-");
-
-    try {
-      const startTime = Date.now();
-      let response = await fetch(path);
-
-      const loadTime = Date.now() - startTime;
-      if (loadTime > 2000) {
-        console.log(`Rate limit détecté (${loadTime} ms). Pause de 10 secondes...`);
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-      }
-
-      if (response.redirected) {
-        updateResults();
-        if (_currentPage > _maxPages) {
-          statusElement.textContent = "Analyse terminée.";
-          statusElement.className = "status green bold";
-        } else {
-          statusElement.textContent = "Analyse mise en pause.";
-          statusElement.className = "status orange";
-        }
-        return;
-      }
-
-      let body = await response.text();
-      let doc = document.implementation.createHTMLDocument();
-      doc.documentElement.innerHTML = body;
-
-      let messagesOnPage = 0;
-
-      doc.querySelectorAll(".bloc-pseudo-msg").forEach((messageElement) => {
-        let pseudo = messageElement.innerText.trim();
-        if (_count.has(pseudo)) {
-          _count.set(pseudo, _count.get(pseudo) + 1);
-        } else {
-          _count.set(pseudo, 1);
-        }
-        messagesOnPage++;
-      });
-
-      _totalMessages += messagesOnPage;
-      _totalPages++;
-
-      updateProgress();
-      updateResults();
-
-      if (!_isPaused && _currentPage <= _maxPages) {
-        _currentPage++;
+    window.resumeAnalysis = function () {
+        if (!_isPaused) return;
+        _isPaused = false;
+        updateStatus("Analyse en cours...");
+        console.log("Reprise demandée.");
         handlePage();
-      } else {
-        updateResults();
-        if (_currentPage > _maxPages) {
-          updateStatus("Analyse terminée.", "green", true);
-        } else {
-          updateStatus("Analyse mise en pause.", "orange", true);
-        }
-      }
-    } catch (error) {
-      console.error("Erreur sur la page " + _currentPage + ":", error);
+    };
 
-      if (attempt < 50) {
-        const delay = Math.min(2 ** attempt * 100, 5000);
-        setTimeout(() => handlePage(attempt + 1), delay);
-      } else {
-        console.error("Échec malgré plusieurs tentatives.");
-        updateStatus("Analyse interrompue.", "red bold", true);
-      }
+    async function handlePage(attempt = 1) {
+        if (_isPaused) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            return handlePage(attempt);
+        }
+
+        updateSummary();
+        const splitPath = location.pathname.split("-");
+        splitPath[3] = _currentPage;
+        const path = splitPath.join("-");
+
+        try {
+            const startTime = Date.now();
+            const response = await fetch(path);
+            const loadTime = Date.now() - startTime;
+
+            if (loadTime > 2000) {
+                console.log(`Rate limit détecté (${loadTime} ms). Pause de 10 secondes...`);
+                await new Promise((resolve) => setTimeout(resolve, 10000));
+            }
+
+            if (response.redirected) {
+                updateResults();
+                updateStatus(
+                    _currentPage > _maxPages ? "Analyse terminée." : "Analyse mise en pause.",
+                    _currentPage > _maxPages ? "green bold" : "orange", true
+                );
+                return;
+            }
+
+            const body = await response.text();
+            const doc = document.implementation.createHTMLDocument();
+            doc.documentElement.innerHTML = body;
+            let messagesOnPage = 0;
+            doc.querySelectorAll(".bloc-pseudo-msg").forEach(
+                (messageElement) => {
+                    const pseudo = messageElement.innerText.trim();
+                    _count.set(pseudo, (_count.get(pseudo) || 0) + 1);
+                    messagesOnPage++;
+                }
+            );
+
+            _totalMessages += messagesOnPage;
+            _totalPages++;
+            updateProgress();
+            updateResults();
+
+            if (!_isPaused && _currentPage <= _maxPages) {
+                _currentPage++;
+                handlePage();
+            } else {
+                updateStatus(
+                    _currentPage > _maxPages ? "Analyse terminée." : "Analyse mise en pause.",
+                    _currentPage > _maxPages ? "green bold" : "orange", true
+                );
+            }
+        } catch (error) {
+            console.error("Erreur sur la page " + _currentPage + ":", error);
+            if (attempt < 50) {
+                const delay = Math.min(2 ** attempt * 100, 5000);
+                setTimeout(() => handlePage(attempt + 1), delay);
+            } else {
+                console.error("Échec malgré plusieurs tentatives.");
+                updateStatus("Analyse interrompue.", "red bold", true);
+            }
+        }
     }
-  }
 
-  handlePage();
+    handlePage();
 
-  const _previousPositions = new Map();
+    const _previousPositions = new Map();
 
-  function updateResults() {
-    resultsTable.innerHTML = "";
-    let sorted = [..._count.entries()].sort((a, b) => b[1] - a[1]);
+    function updateResults() {
+        resultsTable.innerHTML = "";
+        let sorted = [..._count.entries()].sort((a, b) => b[1] - a[1]);
 
-    sorted.forEach(([pseudo, count], index) => {
-      let row = uiWindow.document.createElement("tr");
-      let position = index + 1;
-      let positionChange = "";
-      let previousPosition = _previousPositions.get(pseudo);
+        sorted.forEach(([pseudo, count], index) => {
+            let row = uiWindow.document.createElement("tr");
+            let position = index + 1;
+            let positionChange = "";
+            let previousPosition = _previousPositions.get(pseudo);
 
-      if (typeof previousPosition !== "undefined") {
-        if (position < previousPosition) {
-          positionChange = `<span class="green">↑ ${
-            previousPosition - position
-          }</span>`;
-        } else if (position > previousPosition) {
-          positionChange = `<span class="red">↓ ${
-            position - previousPosition
-          }</span>`;
-        }
-      }
+            switch (true) {
+                case typeof previousPosition !== "undefined" && position < previousPosition:
+                    positionChange = `<span class="green">↑ ${
+                        previousPosition - position
+                    }</span>`;
+                    break;
+                case typeof previousPosition !== "undefined" && position > previousPosition:
+                    positionChange = `<span class="red">↓ ${
+                        position - previousPosition
+                    }</span>`;
+                    break;
+                default:
+                    positionChange = "";
+            }
 
-      _previousPositions.set(pseudo, position);
-      row.innerHTML = `<td>${position} ${positionChange}</td>
-      <td>${pseudo}</td>
-      <td>${count}</td>`;
-      resultsTable.appendChild(row);
-    });
-  }
+            _previousPositions.set(pseudo, position);
+            row.innerHTML = `<td>${position} ${positionChange}</td><td>${pseudo}</td><td>${count}</td>`;
+            resultsTable.appendChild(row);
+        });
+    }
 
-  function updateProgress() {
-    const progress = Math.min((_currentPage / _maxPages) * 100, 100);
-    progressBar.style.width = `${progress}%`;
-  }
+    function updateStatus(text, className = "green", isPaused = false) {
+        const spinner = '<span id="spinner"></span>';
+        statusElement.innerHTML = `${isPaused ? "" : spinner} ${text}`;
+        statusElement.className = `status ${className}`;
+    }
 
-  function updateSummary() {
-    const totalTime = Date.now() - _startTime;
-    const pagesRemaining =
-      _currentPage <= _maxPages ? _maxPages - _currentPage + 1 : "Aucune";
+    function updateProgress() {
+        const progress = Math.min((_currentPage / _maxPages) * 100, 100);
+        progressBar.style.width = `${progress}%`;
+    }
 
-    const summary =
-      `<div class="topic-title bold">Titre du topic : ${topicTitle}</div>\n` +
-      "Total de messages analysés : " +
-      _totalMessages +
-      "<br>\n" +
-      "Pages restantes : " +
-      pagesRemaining +
-      "<br>\n" +
-      "Total de pages analysées : " +
-      _totalPages +
-      "<br>\n" +
-      "Durée totale de l'analyse : " +
-      new Date(totalTime).toISOString().substr(11, 8);
-
-    summaryElement.innerHTML = summary;
-  }
+    function updateSummary() {
+        const totalTime = Date.now() - _startTime;
+        const pagesRemaining = _currentPage <= _maxPages ? _maxPages - _currentPage + 1 : "Aucune";
+        const summary =
+            `<div class="topic-title bold">Titre du topic : ${topicTitle}</div>\n` +
+            "Total de messages analysés : " + _totalMessages + "<br>\n" +
+            "Pages restantes : " + pagesRemaining + "<br>\n" +
+            "Total de pages analysées : " + _totalPages + "<br>\n" +
+            "Durée totale de l'analyse : " + new Date(totalTime).toISOString().substr(11, 8);
+        summaryElement.innerHTML = summary;
+    }
 })();

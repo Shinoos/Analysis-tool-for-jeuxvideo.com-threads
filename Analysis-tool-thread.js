@@ -1,10 +1,12 @@
     (async function main() {
-    const scriptVersion = "v1.0.2";
+    const scriptVersion = "v1.0.3";
     let _currentPage = 1;
     let _count = new Map();
     let _totalMessages = 0;
     let _totalPages = 0;
     let _isPaused = false;
+    let _isPendingRequest = false;
+    const analyzedPages = new Set();
     const pagination = document.querySelector(".bloc-liste-num-page");
     const _maxPages = pagination ? (pagination.querySelectorAll("a.xXx.lien-jv").length > 0 ? parseInt(pagination.querySelectorAll("a.xXx.lien-jv")[Math.max(0, pagination.querySelectorAll("a.xXx.lien-jv").length - (pagination.querySelectorAll("a.xXx.lien-jv").length > 11 ? 2 : 1))].textContent, 10) || 1 : 1) : 1;
     const _startTime = Date.now();
@@ -239,27 +241,28 @@
     const resultsTable = uiWindow.document.querySelector("#results");
     const statusElement = uiWindow.document.querySelector("#status");
 
-    window.pauseAnalysis = function () {
-        !_isPaused && (_isPaused = true, updateStatus("Analyse mise en pause.", "orange", true), console.log("Pause demandée."));
-    };
-
-    window.resumeAnalysis = function () {
-        _isPaused && (_isPaused = false, updateStatus("Analyse en cours..."), console.log("Reprise demandée."), handlePage());
-    };
-
+    window.pauseAnalysis = () => !_isPaused && (_isPaused = true, updateStatus("Analyse mise en pause.", "orange", true), console.log("Pause demandée."));
+    window.resumeAnalysis = () => !_isPendingRequest && _isPaused && (_isPaused = false, updateStatus("Analyse en cours..."), console.log("Reprise demandée."), handlePage());
 
     async function handlePage(attempt = 1) {
 
-       _isPaused && await new Promise((resolve) => setTimeout(resolve, 100)) && handlePage(attempt);
-       updateSummary();
-       const path = location.pathname.split("-").map((_, i) => i === 3 ? _currentPage : _).join("-");
+        _isPaused && await new Promise((resolve) => setTimeout(resolve, 100)) && handlePage(attempt);
+
+        if (analyzedPages.has(_currentPage)) {
+        _currentPage++;
+        return handlePage();
+        }
+
+        updateSummary();
+        const path = location.pathname.split("-").map((_, i) => i === 3 ? _currentPage : _).join("-");
 
         try {
+            _isPendingRequest = true;
             const startTime = Date.now();
             const response = await fetch(path);
             const loadTime = Date.now() - startTime;
 
-            loadTime > 2000 && (console.log(`Rate limit détecté (${loadTime} ms). Pause de 10 secondes...`), await new Promise(resolve => setTimeout(resolve, 10000)));
+            loadTime > 2000 && (console.log(`Rate limit détecté (${loadTime} ms). Pause forcée de 10 secondes...`), await new Promise(resolve => setTimeout(resolve, 10000)));
 
             switch (true) {
                 case response.redirected:
@@ -286,16 +289,21 @@
 
             _totalMessages += messagesOnPage;
             _totalPages++;
+            analyzedPages.add(_currentPage);
             updateProgress();
             updateResults();
+            updateSummary();
+            _isPendingRequest = false;
 
             switch (true) {
                 case (!_isPaused && _currentPage <= _maxPages):
                     _currentPage++;
+                    _isPendingRequest = false;
                     handlePage();
                 break;
 
                 case (_currentPage > _maxPages):
+                    _isPendingRequest = false;
                     updateStatus("Analyse terminée.", "green bold", true);
                 break;
 
@@ -306,6 +314,7 @@
 
         } catch (error) {
             console.error("Erreur sur la page " + _currentPage + ":", error);
+            _isPendingRequest = false;
             switch (true) {
                 case (attempt < 50):
                     const delay = Math.min(2 ** attempt * 100, 5000);
@@ -315,6 +324,8 @@
                 default:
                     console.error("Échec malgré plusieurs tentatives.");
                     updateStatus("Analyse interrompue.", "red bold", true);
+                    _isPendingRequest = false;
+                    throw new Error("Analyse interrompue.");
                 break;
             }
         }
@@ -355,17 +366,25 @@
 
     function updateStatus(text, className = "green", isPaused = false) {
         const spinner = '<span id="spinner"></span>';
-        statusElement.innerHTML = `${isPaused ? "" : spinner} ${text}`;
+        statusElement.innerHTML = `${isPaused || _isPendingRequest ? "" : spinner} ${text}`;
         statusElement.className = `status ${className}`;
 
         const pauseButton = uiWindow.document.querySelector(".controls button:first-child");
         const resumeButton = uiWindow.document.querySelector(".controls button:nth-child(2)");
 
         switch (true) {
-            case text.includes("Analyse mise en pause."):
+            case text.includes("Analyse mise en pause.") && !_isPendingRequest:
                 resumeButton.classList.add("active");
                 resumeButton.classList.remove("disabled");
                 resumeButton.removeAttribute("disabled");
+                pauseButton.classList.add("disabled");
+                pauseButton.setAttribute("disabled", "true");
+            break;
+
+            case text.includes("Analyse mise en pause.") && _isPendingRequest:
+                resumeButton.classList.remove("active");
+                resumeButton.classList.add("disabled");
+                resumeButton.setAttribute("disabled", "true");
                 pauseButton.classList.add("disabled");
                 pauseButton.setAttribute("disabled", "true");
             break;

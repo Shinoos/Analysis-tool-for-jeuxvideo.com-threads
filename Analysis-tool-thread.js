@@ -1,5 +1,6 @@
-    (async function main() {
-    const scriptVersion = "v1.0.3";
+(async function main() {
+    const scriptVersion = "v1.0.4";
+    checkScriptVersion();
     let _currentPage = 1;
     let _count = new Map();
     let _totalMessages = 0;
@@ -7,6 +8,7 @@
     let _isPaused = false;
     let _isPendingRequest = false;
     const analyzedPages = new Set();
+    const _previousPositions = new Map();
     const pagination = document.querySelector(".bloc-liste-num-page");
     const _maxPages = pagination ? (pagination.querySelectorAll("a.xXx.lien-jv").length > 0 ? parseInt(pagination.querySelectorAll("a.xXx.lien-jv")[Math.max(0, pagination.querySelectorAll("a.xXx.lien-jv").length - (pagination.querySelectorAll("a.xXx.lien-jv").length > 11 ? 2 : 1))].textContent, 10) || 1 : 1) : 1;
     const _startTime = Date.now();
@@ -129,10 +131,20 @@
           background: #2f3136; 
         }
         td { 
-          background: #36393f; 
+          background: #36393f;
+          width: 70px;
         }
         tr:nth-child(even) td { 
           background: #2c2f33; 
+        }
+        td:nth-child(1), th:nth-child(1) {
+         width: 70px;
+        }
+        td:nth-child(2), th:nth-child(2) {
+         width: 150px;
+        }
+        td:nth-child(3), th:nth-child(3) {
+         width: 120px;
         }
         .green { 
           color: #43b581; 
@@ -241,8 +253,7 @@
     const resultsTable = uiWindow.document.querySelector("#results");
     const statusElement = uiWindow.document.querySelector("#status");
 
-    window.pauseAnalysis = () => !_isPaused && (_isPaused = true, updateStatus("Analyse mise en pause.", "orange", true), console.log("Pause demandée."));
-    window.resumeAnalysis = () => !_isPendingRequest && _isPaused && (_isPaused = false, updateStatus("Analyse en cours..."), console.log("Reprise demandée."), handlePage());
+    handlePage();
 
     async function handlePage(attempt = 1) {
 
@@ -262,7 +273,7 @@
             const response = await fetch(path);
             const loadTime = Date.now() - startTime;
 
-            loadTime > 2000 && (console.log(`Rate limit détecté (${loadTime} ms). Pause forcée de 10 secondes...`), await new Promise(resolve => setTimeout(resolve, 10000)));
+            loadTime > 2000 && (/*console.log(`Rate limit détecté (${loadTime} ms). Pause forcée de 7 secondes...`),*/ await new Promise(resolve => setTimeout(resolve, 7000)));
 
             switch (true) {
                 case response.redirected:
@@ -300,16 +311,16 @@
                     _currentPage++;
                     _isPendingRequest = false;
                     handlePage();
-                break;
+                    break;
 
                 case (_currentPage > _maxPages):
                     _isPendingRequest = false;
                     updateStatus("Analyse terminée.", "green bold", true);
-                break;
+                    break;
 
                 default:
                     updateStatus("Analyse mise en pause.", "orange", true);
-                break;
+                    break;
             }
 
         } catch (error) {
@@ -319,21 +330,21 @@
                 case (attempt < 50):
                     const delay = Math.min(2 ** attempt * 100, 5000);
                     setTimeout(() => handlePage(attempt + 1), delay);
-                break;
+                    break;
 
                 default:
                     console.error("Échec malgré plusieurs tentatives.");
                     updateStatus("Analyse interrompue.", "red bold", true);
                     _isPendingRequest = false;
                     throw new Error("Analyse interrompue.");
-                break;
+                    break;
             }
         }
     }
 
-    handlePage();
-
-    const _previousPositions = new Map();
+    window.pauseAnalysis = () => !_isPaused && (_isPaused = true, updateStatus("Analyse mise en pause.", "orange", true)/*, console.log("Pause demandée.")*/);
+    window.resumeAnalysis = () => !_isPendingRequest && _isPaused && (_isPaused = false, updateStatus("Analyse en cours...")/*, console.log("Reprise demandée.")*/, handlePage());
+    window.updateProgress = () => progressBar.style.width = `${Math.min(_currentPage / _maxPages * 100, 100)}%`;
 
     function updateResults() {
         resultsTable.innerHTML = "";
@@ -348,11 +359,11 @@
             switch (true) {
                 case typeof previousPosition !== "undefined" && position < previousPosition:
                     positionChange = `<span class="green">↑ ${previousPosition - position}</span>`;
-                break;
+                    break;
 
                 case typeof previousPosition !== "undefined" && position > previousPosition:
                     positionChange = `<span class="red">↓ ${position - previousPosition}</span>`;
-                break;
+                    break;
 
                 default:
                     positionChange = "";
@@ -379,7 +390,7 @@
                 resumeButton.removeAttribute("disabled");
                 pauseButton.classList.add("disabled");
                 pauseButton.setAttribute("disabled", "true");
-            break;
+                break;
 
             case text.includes("Analyse mise en pause.") && _isPendingRequest:
                 resumeButton.classList.remove("active");
@@ -387,14 +398,14 @@
                 resumeButton.setAttribute("disabled", "true");
                 pauseButton.classList.add("disabled");
                 pauseButton.setAttribute("disabled", "true");
-            break;
+                break;
 
             case text.includes("Analyse terminée."):
                 resumeButton.classList.add("disabled");
                 resumeButton.setAttribute("disabled", "true");
                 pauseButton.classList.add("disabled");
                 pauseButton.setAttribute("disabled", "true");
-            break;
+                break;
 
             default:
                 resumeButton.classList.remove("active");
@@ -402,12 +413,8 @@
                 resumeButton.setAttribute("disabled", "true");
                 pauseButton.classList.remove("disabled");
                 pauseButton.removeAttribute("disabled");
-            break;
+                break;
         }
-    }
-
-    function updateProgress() {
-        progressBar.style.width = `${Math.min(_currentPage / _maxPages * 100, 100)}%`;
     }
 
     function updateSummary() {
@@ -421,4 +428,21 @@
             "Durée totale de l'analyse : " + new Date(totalTime).toISOString().substr(11, 8);
         summaryElement.innerHTML = summary;
     }
+
+    async function checkScriptVersion() {
+        try {
+            const response = await fetch('https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/Analysis-tool-thread.js');
+            const onlineScript = await response.text();
+            const onlineScriptVersion = onlineScript.match(/const scriptVersion = "(.+)";/)[1];
+
+            if (onlineScriptVersion !== scriptVersion) {
+                console.warn(`Vous utilisez actuellement une ancienne version du script (${scriptVersion}). Une nouvelle version du script (${onlineScriptVersion}) est disponible : https://github.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads`)
+            } else {
+                console.warn(`Vous utilisez bien la dernière version du script : ${scriptVersion} 👍`);
+            }
+        } catch (error) {
+            console.error('Erreur lors de la vérification de la version du script :', error);
+        }
+    }
+
 })();

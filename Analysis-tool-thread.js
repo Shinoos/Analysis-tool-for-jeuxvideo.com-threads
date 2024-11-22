@@ -287,6 +287,7 @@
                     _currentPage > _maxPages ? "Analyse terminée." : "Analyse mise en pause.",
                     _currentPage > _maxPages ? "green bold" : "orange", true
                     );
+                    _isPendingRequest = false;
                 return;
             }
 
@@ -330,7 +331,6 @@
 
         } catch (error) {
             console.error("Erreur sur la page " + _currentPage + ":", error);
-            _isPendingRequest = false;
             switch (true) {
                 case (attempt < 50):
                     const delay = Math.min(2 ** attempt * 100, 5000);

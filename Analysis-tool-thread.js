@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.0.5";
+    const scriptVersion = "v1.0.6";
     checkScriptVersion();
     let _currentPage = 1;
     let _count = new Map();
@@ -15,6 +15,8 @@
     const topicTitleElement = document.querySelector("#bloc-title-forum");
     const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
     const userPageInput = prompt("À partir de quelle page souhaitez-vous commencer l'analyse ?\nLaissez vide pour analyser tout le topic depuis la page 1.");
+
+    if (userPageInput === null) return console.warn("Lancement annulé.");
 
     _currentPage = userPageInput ? Math.max(1, parseInt(userPageInput, 10) || 1) : 1;
 

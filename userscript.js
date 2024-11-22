@@ -2,7 +2,7 @@
 // @name         Analysis-tool-for-jeuxvideo.com-threads
 // @description  Analysis tool designed to calculate the number of posts made by users in a thread
 // @author       Shinoos
-// @version      1.0.0
+// @version      1.0.1
 // @updateURL    https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/userscript.js
 // @downloadURL  https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/userscript.js
 // @match        https://www.jeuxvideo.com/forums/42*
@@ -20,12 +20,12 @@
 
     const buttonDiv = document.createElement('div');
     buttonDiv.style.textAlign = "center";
-    buttonDiv.style.marginTop = "20px";
 
     const button = document.createElement('button');
     button.textContent = "Faire un classement du topic";
     button.style.padding = "8px 16px";
     button.style.fontSize = "14px";
+    button.style.fontWeight = "bold";
     button.style.cursor = "pointer";
     button.style.backgroundColor = "#7289da";
     button.style.color = "white";

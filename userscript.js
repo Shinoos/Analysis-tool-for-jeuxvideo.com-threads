@@ -3,6 +3,8 @@
 // @description  Analysis tool designed to calculate the number of posts made by users in a thread
 // @author       Shinoos
 // @version      1.0.0
+// @updateURL    https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/userscript.js
+// @downloadURL  https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/userscript.js
 // @match        https://www.jeuxvideo.com/forums/42*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -69,5 +71,5 @@
             }
         });
     }
-    
+
 })();

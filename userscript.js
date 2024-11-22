@@ -6,6 +6,7 @@
 // @updateURL    https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/userscript.js
 // @downloadURL  https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/userscript.js
 // @match        https://www.jeuxvideo.com/forums/42*
+// @match        https://www.jeuxvideo.com/forums/1*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // ==/UserScript==

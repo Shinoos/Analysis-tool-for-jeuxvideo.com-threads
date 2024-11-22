@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.0.4";
+    const scriptVersion = "v1.0.5";
     checkScriptVersion();
     let _currentPage = 1;
     let _count = new Map();
@@ -248,6 +248,11 @@
     </html>`
     );
 
+    uiWindow.addEventListener("beforeunload", () => _isPendingRequest && (pauseAnalysis(), console.error("Fenêtre fermée, analyse interrompue.")));
+    window.pauseAnalysis = () => !_isPaused && (_isPaused = true, updateStatus("Analyse mise en pause.", "orange", true)/*, console.log("Pause demandée.")*/);
+    window.resumeAnalysis = () => !_isPendingRequest && _isPaused && (_isPaused = false, updateStatus("Analyse en cours...")/*, console.log("Reprise demandée.")*/, handlePage());
+    window.updateProgress = () => progressBar.style.width = `${Math.min(_currentPage / _maxPages * 100, 100)}%`;
+    
     const progressBar = uiWindow.document.querySelector(".progress-bar .fill");
     const summaryElement = uiWindow.document.querySelector("#summary");
     const resultsTable = uiWindow.document.querySelector("#results");
@@ -341,10 +346,6 @@
             }
         }
     }
-
-    window.pauseAnalysis = () => !_isPaused && (_isPaused = true, updateStatus("Analyse mise en pause.", "orange", true)/*, console.log("Pause demandée.")*/);
-    window.resumeAnalysis = () => !_isPendingRequest && _isPaused && (_isPaused = false, updateStatus("Analyse en cours...")/*, console.log("Reprise demandée.")*/, handlePage());
-    window.updateProgress = () => progressBar.style.width = `${Math.min(_currentPage / _maxPages * 100, 100)}%`;
 
     function updateResults() {
         resultsTable.innerHTML = "";

@@ -1,5 +1,5 @@
 (async function main() {
-  const scriptVersion = "v1.0.7";
+  const scriptVersion = "v1.1.0";
   checkScriptVersion();
   let _currentPage = 1;
   let _count = new Map();
@@ -20,15 +20,11 @@
 
   _currentPage = userPageInput ? Math.max(1, parseInt(userPageInput, 10) || 1) : 1;
 
-  const uiWindow = window.open("", "_blank", "width=800,height=600");
-
-    uiWindow.document.write(
-    `<!DOCTYPE html> 
-    <html lang="en">
+  window.document.body.innerHTML = `
+    <html>
     <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analysis-tool-for-jeuxvideo.com-threads.js ${scriptVersion}</title> 
     <style>
       body { 
         font-family: Arial, sans-serif; 
@@ -105,6 +101,7 @@
         height: 100%; 
         width: 0%; 
         border-radius: 10px 0 0 10px;
+        transition: width 0.5s ease-in-out;
       }
       .summary { 
         margin-bottom: 20px; 
@@ -167,7 +164,7 @@
         text-align: center;
         font-size: 18px;
         min-width: 200px;
-        height: 40px;
+        height: 50px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -216,8 +213,8 @@
   <body>
     <div class="container">
       <div class="controls">
-        <button onclick="window.opener.pauseAnalysis()">Pause</button>
-        <button onclick="window.opener.resumeAnalysis()" class="disabled" disabled>Reprendre</button>
+        <button onclick="pauseAnalysis()">Pause</button>
+        <button onclick="resumeAnalysis()" class="disabled" disabled>Reprendre</button>
         <button onclick="copyResults()">Copier les résultats</button>
       </div>
       <div class="progress-bar">
@@ -240,35 +237,33 @@
         </table>
       </div>
     </div>
-    <script>
-      function copyResults() {
-        const summary = document.querySelector("#summary").textContent;
-        let resultsText = summary + "\\n\\n";
-        let rows = document.querySelectorAll("#results tr");
-        rows.forEach((row) => {
-        let cells = row.querySelectorAll("td");
-        let messageCount = parseInt(cells[2].textContent);
-        let messageText = messageCount === 1 ? "1 message" : \`$\{messageCount} messages\`;
-        resultsText += \`#$\{cells[0].textContent.split(' ')[0]} : \${cells[1].textContent} -> \${messageText}\n\`;
-        });
-        resultsText = resultsText.replace(/Pages restantes.*\\n/, '');
-        resultsText = resultsText.replace(/Analyse terminée.\\n/, '');
-        navigator.clipboard.writeText(resultsText).then(() => alert("Résultats copiés dans le presse-papiers !")).catch(err => alert("Échec de la copie des résultats : " + err));
-      }
-    </script>
   </body>
-  </html>`
-  );
+  </html>`;
 
-  uiWindow.addEventListener("beforeunload", () => _isPendingRequest && (pauseAnalysis(), console.error("Fenêtre fermée, analyse interrompue.")));
-  window.pauseAnalysis = () => !_isPaused && (_isPaused = true, updateStatus("Analyse mise en pause.", "orange", true)/*, console.log("Pause demandée.")*/);
-  window.resumeAnalysis = () => !_isPendingRequest && _isPaused && (_isPaused = false, updateStatus("Analyse en cours...")/*, console.log("Reprise demandée.")*/, handlePage());
-  window.updateProgress = () => progressBar.style.width = `${Math.min(_currentPage / _maxPages * 100, 100)}%`;
+  const progressBar = window.document.querySelector(".progress-bar .fill");
+  const summaryElement = window.document.querySelector("#summary");
+  const resultsTable = window.document.querySelector("#results");
+  const statusElement = window.document.querySelector("#status");
 
-  const progressBar = uiWindow.document.querySelector(".progress-bar .fill");
-  const summaryElement = uiWindow.document.querySelector("#summary");
-  const resultsTable = uiWindow.document.querySelector("#results");
-  const statusElement = uiWindow.document.querySelector("#status");
+  pauseAnalysis = () => !_isPaused && (_isPaused = true, updateStatus("Analyse mise en pause.", "orange", true)/*, console.log("Pause demandée.")*/);
+  resumeAnalysis = () => !_isPendingRequest && _isPaused && (_isPaused = false, updateStatus("Analyse en cours...")/*, console.log("Reprise demandée.")*/, handlePage());
+  updateProgress = () => progressBar.style.width = `${Math.min(_currentPage / _maxPages * 100, 100)}%`;
+  copyResults = () => {
+    try {
+      const rows = window.document.querySelectorAll("#results tr");
+      let resultsText = (window.document.querySelector("#summary")?.textContent || "Récap non trouvé.") + "\n\n";
+      rows.forEach(row => {
+      const cells = row.querySelectorAll("td");
+        if (cells.length >= 3) 
+          resultsText += `#${cells[0]?.textContent.split(' ')[0] || "?"} : ${cells[1]?.textContent || "?"} -> ${parseInt(cells[2]?.textContent) || 0} ${parseInt(cells[2]?.textContent) === 1 ? "message" : "messages"}\n`;
+      });
+        navigator.clipboard.writeText(resultsText.replace(/Pages restantes.*\n|Analyse terminée.\n/, ''))
+        .then(() => alert("Résultats copiés dans le presse-papiers !"))
+        .catch(err => alert("Échec de la copie des résultats : " + err));
+    } catch (e) {
+      alert("Erreur : " + e.message);
+    }
+  };
 
   handlePage();
 
@@ -364,7 +359,7 @@
     let sorted = [..._count.entries()].sort((a, b) => b[1] - a[1]);
 
     sorted.forEach(([pseudo, count], index) => {
-      let row = uiWindow.document.createElement("tr");
+      let row = window.document.createElement("tr");
       let position = index + 1;
       let positionChange = "";
       let previousPosition = _previousPositions.get(pseudo);
@@ -393,8 +388,8 @@
     statusElement.innerHTML = `${isPaused || _isPendingRequest ? "" : spinner} ${text}`;
     statusElement.className = `status ${className}`;
 
-    const pauseButton = uiWindow.document.querySelector(".controls button:first-child");
-    const resumeButton = uiWindow.document.querySelector(".controls button:nth-child(2)");
+    const pauseButton = window.document.querySelector(".controls button:first-child");
+    const resumeButton = window.document.querySelector(".controls button:nth-child(2)");
 
     switch (true) {
       case text.includes("Analyse mise en pause.") && !_isPendingRequest:

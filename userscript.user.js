@@ -2,7 +2,7 @@
 // @name         Analysis-tool-for-jeuxvideo.com-threads
 // @description  Analysis tool designed to calculate the number of posts made by users in a thread
 // @author       Shinoos
-// @version      1.0.2
+// @version      1.0.3
 // @connect      raw.githubusercontent.com
 // @updateURL    https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/userscript.user.js
 // @downloadURL  https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/userscript.user.js
@@ -28,27 +28,27 @@
     button.style.fontSize = "14px";
     button.style.fontWeight = "bold";
     button.style.cursor = "pointer";
-    button.style.backgroundColor = "#7289da";
+    button.style.backgroundColor = "#6064f4";
     button.style.color = "white";
     button.style.border = "none";
     button.style.borderRadius = "5px";
     button.style.fontFamily = "Arial, sans-serif";
-    button.style.transition = "background-color 0.3s ease, transform 0.5s ease";
+    button.style.transition = "background-color 0.15s ease, transform 0.20s ease";
     buttonDiv.appendChild(button);
     forumRightCol.appendChild(buttonDiv);
 
     button.addEventListener('mouseover', function() {
-        button.style.backgroundColor = "#5a6fa0";
-        button.style.transform = "scale(1.05)";
+        button.style.backgroundColor = "#4346ab";
+        button.style.transform = "scale(1.03)";
     });
 
     button.addEventListener('mouseout', function() {
-        button.style.backgroundColor = "#7289da";
+        button.style.backgroundColor = "#6064f4";
         button.style.transform = "scale(1)";
     });
 
     button.addEventListener('mousedown', function() {
-        button.style.transform = "scale(0.95)";
+        button.style.transform = "scale(0.97)";
     });
 
     button.addEventListener('mouseup', function() {
@@ -69,7 +69,7 @@
                 document.body.appendChild(script);
             },
             onerror: function() {
-                alert("Impossible de charger le script.");
+                alert("Analysis-tool-for-jeuxvideo.com-threads → Impossible de charger le script.");
             }
         });
     }

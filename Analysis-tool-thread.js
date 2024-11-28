@@ -444,7 +444,7 @@
 
   async function checkScriptVersion() {
     try {
-      const response = await fetch('https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/Analysis-tool-thread.js');
+      const response = await fetch('https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/Analysis-tool-thread.js');
       const onlineScript = await response.text();
       const onlineScriptVersion = onlineScript.match(/const scriptVersion = "(.+)";/)[1];
 

@@ -4,8 +4,8 @@
 // @author       Shinoos
 // @version      1.0.3
 // @connect      raw.githubusercontent.com
-// @updateURL    https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/userscript.user.js
-// @downloadURL  https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/userscript.user.js
+// @updateURL    https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/userscript.user.js
+// @downloadURL  https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/userscript.user.js
 // @match        https://www.jeuxvideo.com/forums/42*
 // @match        https://www.jeuxvideo.com/forums/1*
 // @grant        GM_xmlhttpRequest
@@ -62,7 +62,7 @@
     function executeAnalysisScript() {
         GM_xmlhttpRequest({
             method: "GET",
-            url: "https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/main/Analysis-tool-thread.js",
+            url: "https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/Analysis-tool-thread.js",
             onload: function(response) {
                 const script = document.createElement('script');
                 script.textContent = response.responseText;

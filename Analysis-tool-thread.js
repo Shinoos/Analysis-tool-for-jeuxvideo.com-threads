@@ -1,5 +1,5 @@
  (async function main() {
-  const scriptVersion = "v1.2.2";
+  const scriptVersion = "v1.2.3";
   checkScriptVersion();
   let _currentPage = 1;
   let _count = new Map();
@@ -46,6 +46,43 @@
         opacity: 0;
         transition: transform 0.3s ease, opacity 0.3s ease;
       `;
+
+      const closeButton = document.createElement('button');
+      closeButton.innerHTML = '&times;';
+      closeButton.style.cssText = `
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: none;
+        border: none;
+        color: #b9bbbe;
+        font-size: 30px;
+        cursor: pointer;
+        transition: color 0.2s ease;
+        padding: 0;
+        line-height: 1;
+        width: 25px;
+        height: 25px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 50%;
+      `;
+
+      closeButton.addEventListener('mouseenter', () => {
+        closeButton.style.color = '#ffffff';
+        closeButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+      });
+
+      closeButton.addEventListener('mouseleave', () => {
+        closeButton.style.color = '#b9bbbe';
+        closeButton.style.backgroundColor = 'transparent';
+      });
+
+      closeButton.addEventListener('click', () => {
+        overlay.remove();
+        return;
+      });
 
       const title = document.createElement('h2');
       title.textContent = 'Sélection de la page de départ';
@@ -138,6 +175,7 @@
         resolve(selectedPage);
       });
 
+      modal.appendChild(closeButton);
       modal.appendChild(title);
       modal.appendChild(description);
       modal.appendChild(input);
@@ -157,6 +195,11 @@
           const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, _maxPages));
           overlay.remove();
           resolve(selectedPage);
+        }
+
+        if (event.key === 'Escape') {
+          overlay.remove();
+          return;
         }
 
       });

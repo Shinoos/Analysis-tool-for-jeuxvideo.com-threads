@@ -1,5 +1,5 @@
   (async function main() {
-    const scriptVersion = "v1.2.0";
+    const scriptVersion = "v1.2.1";
     checkScriptVersion();
     let _currentPage = 1;
     let _count = new Map();
@@ -404,14 +404,15 @@
       });
     }
 
-    function fusionPseudos(oldPseudo, newPseudo, count) {
-      if (_count.has(newPseudo)) {
-        _count.set(newPseudo, _count.get(newPseudo) + count);
+    function fusionPseudos(targetPseudo, sourcePseudo, count) {
+      if (_count.has(targetPseudo)) {
+        _count.set(targetPseudo, _count.get(targetPseudo) + count);
       } else {
-        _count.set(newPseudo, count);
+        _count.set(targetPseudo, count);
       }
-      _count.delete(oldPseudo);
-      _previousPositions.delete(oldPseudo);
+
+      _count.delete(sourcePseudo);
+      _previousPositions.delete(sourcePseudo);
     }
 
     function showFusionMenu(pseudo, count, row) {
@@ -452,7 +453,7 @@
       menu.appendChild(title);
 
       const description = window.document.createElement("p");
-      description.textContent = `Vous allez fusionner le pseudo "${pseudo}" avec un autre. Le pseudo disparaîtra du tableau et sera fusionné avec le pseudo sélectionné.`;
+      description.textContent = `Vous allez fusionner le pseudo "${pseudo}" avec un autre. Le pseudo sélectionné dans le menu déroulant disparaîtra du tableau et sera fusionné.`;
       description.style.fontSize = "14px";
       description.style.marginBottom = "20px";
       description.style.textAlign = "center";
@@ -474,13 +475,6 @@
       fusionSelect.style.outline = "none";
       fusionSelect.style.transition = "border-color 0.3s ease";
 
-      fusionSelect.addEventListener("focus", () => {
-        fusionSelect.style.borderColor = "#6064f4";
-      });
-      fusionSelect.addEventListener("blur", () => {
-        fusionSelect.style.borderColor = "#40444b";
-      });
-
       const defaultOption = window.document.createElement("option");
       defaultOption.value = "";
       defaultOption.textContent = "Sélectionnez un pseudo";
@@ -495,25 +489,9 @@
       for (const [p, c] of sortedPseudos) {
         const option = window.document.createElement("option");
         option.value = p;
-        option.textContent = `${p} (${c} messages)`;
+        option.textContent = `${p} (${c} ${c > 1 ? "messages" : "message"})`;
         fusionSelect.appendChild(option);
       }
-
-      const infoDiv = window.document.createElement("div");
-      infoDiv.style.marginBottom = "20px";
-      infoDiv.style.textAlign = "center";
-      const infoText = window.document.createElement("p");
-      infoText.style.fontSize = "13px";
-      infoText.style.color = "#b9bbbe";
-      infoText.textContent = "Sélectionnez un pseudo pour voir l'impact de la fusion.";
-      infoDiv.appendChild(infoText);
-      menu.appendChild(fusionSelect);
-      menu.appendChild(infoDiv);
-
-      fusionSelect.addEventListener("change", (e) => {
-        const selectedPseudo = e.target.value;
-        infoText.textContent = selectedPseudo ? `Le pseudo "${pseudo}" sera fusionné avec "${selectedPseudo}".` : "Sélectionnez un pseudo pour voir l'impact de la fusion.";
-      });
 
       const fusionButton = window.document.createElement("button");
       fusionButton.textContent = "Fusionner";
@@ -527,18 +505,11 @@
       fusionButton.style.marginBottom = "10px";
       fusionButton.style.fontSize = "16px";
       fusionButton.style.fontWeight = "600";
-      fusionButton.style.transition = "background-color 0.3s ease, transform 0.15s ease";
 
-      fusionButton.addEventListener("mouseenter", () => {
-        fusionButton.style.backgroundColor = "#4346ab";
-      });
-      fusionButton.addEventListener("mouseleave", () => {
-        fusionButton.style.backgroundColor = "#6064f4";
-      });
       fusionButton.addEventListener("click", () => {
-        const newPseudo = fusionSelect.value;
-        if (newPseudo) {
-          fusionPseudos(pseudo, newPseudo, count);
+        const sourcePseudo = fusionSelect.value;
+        if (sourcePseudo) {
+          fusionPseudos(pseudo, sourcePseudo, _count.get(sourcePseudo));
           overlay.remove();
           updateResults();
         }
@@ -553,20 +524,12 @@
       cancelButton.style.borderRadius = "8px";
       cancelButton.style.cursor = "pointer";
       cancelButton.style.width = "100%";
-      cancelButton.style.fontSize = "16px";
-      cancelButton.style.fontWeight = "600";
-      cancelButton.style.transition = "background-color 0.3s ease, transform 0.15s ease";
 
-      cancelButton.addEventListener("mouseenter", () => {
-        cancelButton.style.backgroundColor = "#ff1a1a";
-      });
-      cancelButton.addEventListener("mouseleave", () => {
-        cancelButton.style.backgroundColor = "#ff4d4d";
-      });
       cancelButton.addEventListener("click", () => {
         overlay.remove();
       });
 
+      menu.appendChild(fusionSelect);
       menu.appendChild(fusionButton);
       menu.appendChild(cancelButton);
 
@@ -581,7 +544,6 @@
       const handleEscKey = (e) => {
         if (e.key === "Escape") {
           overlay.remove();
-          window.removeEventListener("keydown", handleEscKey);
         }
       };
       window.addEventListener("keydown", handleEscKey);
@@ -640,8 +602,6 @@
         "Durée totale de l'analyse : " + new Date(totalTime).toISOString().substr(11, 8);
       summaryElement.innerHTML = summary;
     }
-
-
 
     async function checkScriptVersion() {
       try {

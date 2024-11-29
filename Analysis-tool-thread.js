@@ -1,26 +1,171 @@
-  (async function main() {
-    const scriptVersion = "v1.2.1";
-    checkScriptVersion();
-    let _currentPage = 1;
-    let _count = new Map();
-    let _totalMessages = 0;
-    let _totalPages = 0;
-    let _isPaused = false;
-    let _isPendingRequest = false;
-    const analyzedPages = new Set();
-    const _previousPositions = new Map();
-    const pagination = document.querySelector(".bloc-liste-num-page");
-    const _maxPages = pagination ? (pagination.querySelectorAll("a.xXx.lien-jv").length > 0 ? parseInt(pagination.querySelectorAll("a.xXx.lien-jv")[Math.max(0, pagination.querySelectorAll("a.xXx.lien-jv").length - (pagination.querySelectorAll("a.xXx.lien-jv").length > 11 ? 2 : 1))].textContent, 10) || 1 : 1) : 1;
-    const _startTime = Date.now();
-    const topicTitleElement = document.querySelector("#bloc-title-forum");
-    const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
-    const userPageInput = prompt("À partir de quelle page souhaitez-vous commencer l'analyse ?\nLaissez vide pour analyser tout le topic depuis la page 1.");
+ (async function main() {
+  const scriptVersion = "v1.2.2";
+  checkScriptVersion();
+  let _currentPage = 1;
+  let _count = new Map();
+  let _totalMessages = 0;
+  let _totalPages = 0;
+  let _isPaused = false;
+  let _isPendingRequest = false;
+  const analyzedPages = new Set();
+  const _previousPositions = new Map();
+  const pagination = document.querySelector(".bloc-liste-num-page");
+  const _maxPages = pagination ? (pagination.querySelectorAll("a.xXx.lien-jv").length > 0 ? parseInt(pagination.querySelectorAll("a.xXx.lien-jv")[Math.max(0, pagination.querySelectorAll("a.xXx.lien-jv").length - (pagination.querySelectorAll("a.xXx.lien-jv").length > 11 ? 2 : 1))].textContent, 10) || 1 : 1) : 1;
+  const _startTime = Date.now();
+  const topicTitleElement = document.querySelector("#bloc-title-forum");
+  const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
 
-    if (userPageInput === null) return console.warn("Lancement annulé.");
+  function userPageInput() {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        font-family: Arial, sans-serif;
+      `;
 
-    _currentPage = userPageInput ? Math.max(1, parseInt(userPageInput, 10) || 1) : 1;
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        background: #2c2f33;
+        border-radius: 12px;
+        padding: 30px;
+        width: 400px;
+        max-width: 90%;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        text-align: center;
+        color: #ffffff;
+        transform: scale(0.9);
+        opacity: 0;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+      `;
 
-    window.document.body.innerHTML = `
+      const title = document.createElement('h2');
+      title.textContent = 'Sélection de la page de départ';
+      title.style.cssText = `
+        color: #6064f4;
+        margin-bottom: 20px;
+        font-size: 20px;
+      `;
+
+      const description = document.createElement('p');
+      description.textContent = `Ce topic contient ${_maxPages} pages. À partir de quelle page souhaitez-vous commencer l'analyse ?`;
+      description.style.cssText = `
+        color: #b9bbbe;
+        margin-bottom: 20px;
+        line-height: 1.5;
+      `;
+
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = 1;
+      input.max = _maxPages;
+      input.value = 1;
+      input.style.cssText = `
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #40444b;
+        border-radius: 8px;
+        background: #1e1f22;
+        color: #ffffff;
+        font-size: 16px;
+        text-align: center;
+      `;
+
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'e' || event.key === 'E' || event.key === '+' || event.key === '-') {
+          event.preventDefault();
+        }
+      });
+
+      input.addEventListener('input', () => {
+        const value = parseInt(input.value, 10) || 1;
+        if (value > _maxPages) {
+          input.value = _maxPages;
+        } else if (value < 1) {
+          input.value = 1;
+        }
+      });
+
+      const startButton = document.createElement('button');
+      startButton.textContent = 'Commencer l\'analyse';
+      startButton.style.cssText = `
+        width: 100%;
+        padding: 12px;
+        background: #6064f4;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+      `;
+
+      startButton.addEventListener('mouseenter', () => {
+        startButton.style.background = '#4346ab';
+        startButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
+      });
+
+      startButton.addEventListener('mouseleave', () => {
+        startButton.style.background = '#6064f4';
+        startButton.style.boxShadow = 'none';
+      });
+
+      startButton.addEventListener('mousedown', () => {
+        startButton.style.transform = 'scale(0.98)';
+        startButton.style.background = '#4346ab';
+        startButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+      });
+
+      startButton.addEventListener('mouseup', () => {
+        startButton.style.transform = 'scale(1)';
+        startButton.style.background = '#6064f4';
+        startButton.style.boxShadow = 'none';
+      });
+
+      startButton.addEventListener('click', () => {
+        const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, _maxPages));
+        overlay.remove();
+        resolve(selectedPage);
+      });
+
+      modal.appendChild(title);
+      modal.appendChild(description);
+      modal.appendChild(input);
+      modal.appendChild(startButton);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+
+      requestAnimationFrame(() => {
+        modal.style.transform = 'scale(1)';
+        modal.style.opacity = '1';
+      });
+
+      input.focus();
+
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, _maxPages));
+          overlay.remove();
+          resolve(selectedPage);
+        }
+
+      });
+    });
+  }
+
+  const userInput = await userPageInput();
+  _currentPage = userInput;
+
+  window.document.body.innerHTML = `
       <html>
       <head>
       <meta charset="UTF-8">
@@ -34,6 +179,36 @@
           color: #ffffff; 
           line-height: 1.5;
         }
+        .notification-container {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          z-index: 1000;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          pointer-events: none;
+        }
+        .notification {
+          background-color: #6064f4;
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          margin-bottom: 10px;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+          opacity: 0;
+          transform: translateX(100%);
+          transition: opacity 0.3s ease, transform 0.3s ease;
+          font-family: Arial, sans-serif;
+          pointer-events: none;
+        }
+        .notification.show {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        .notification.error { background-color: #ff0000; }
+        .notification.success { background-color: #05980c; }
+        .notification.warning { background-color: #ffa500; }
         .container { 
           padding: 20px; 
           max-width: 800px; 
@@ -236,387 +411,410 @@
             <tbody id="results"></tbody>
           </table>
         </div>
+        <div class="notification-container"></div>
       </div>
     </body>
     </html>`;
 
-    const progressBar = window.document.querySelector(".progress-bar .fill");
-    const summaryElement = window.document.querySelector("#summary");
-    const resultsTable = window.document.querySelector("#results");
-    const statusElement = window.document.querySelector("#status");
+  const progressBar = window.document.querySelector(".progress-bar .fill");
+  const summaryElement = window.document.querySelector("#summary");
+  const resultsTable = window.document.querySelector("#results");
+  const statusElement = window.document.querySelector("#status");
+  const notificationContainer = window.document.querySelector(".notification-container");
 
-    pauseAnalysis = () => !_isPaused && (_isPaused = true, updateStatus("Analyse mise en pause.", "orange", true) /*, console.log("Pause demandée.")*/ );
-    resumeAnalysis = () => !_isPendingRequest && _isPaused && (_isPaused = false, updateStatus("Analyse en cours...") /*, console.log("Reprise demandée.")*/ , handlePage());
-    updateProgress = () => progressBar.style.width = `${Math.min(_currentPage / _maxPages * 100, 100)}%`;
-    copyResults = () => {
-      try {
-        const rows = window.document.querySelectorAll("#results tr");
-        let resultsText = (window.document.querySelector("#summary")?.textContent || "Récap non trouvé.") + "\n\n";
-        rows.forEach(row => {
-          const cells = row.querySelectorAll("td");
-          if (cells.length >= 3)
-            resultsText += `#${cells[0]?.textContent.split(' ')[0] || "?"} : ${cells[1]?.textContent || "?"} -> ${parseInt(cells[2]?.textContent) || 0} ${parseInt(cells[2]?.textContent) === 1 ? "message" : "messages"}\n`;
-        });
-        navigator.clipboard.writeText(resultsText.replace(/Pages restantes.*\n|Analyse terminée.\n/, ''))
-          .then(() => alert("Résultats copiés dans le presse-papiers !"))
-          .catch(err => alert("Échec de la copie des résultats : " + err));
-      } catch (e) {
-        alert("Erreur : " + e.message);
-      }
-    };
+  function showNotification(message, type = 'info', duration = 3000) {
+    const notification = document.createElement('div');
+    notification.classList.add('notification', type);
+    notification.textContent = message;
+    notificationContainer.appendChild(notification);
 
-    handlePage();
+    requestAnimationFrame(() => {
+      notification.classList.add('show');
+    });
 
-    async function handlePage(attempt = 1) {
+    setTimeout(() => {
+      notification.classList.remove('show');
+      setTimeout(() => {
+        notificationContainer.removeChild(notification);
+      }, 300);
+    }, duration);
+  }
 
-      _isPaused && await new Promise((resolve) => setTimeout(resolve, 100)) && handlePage(attempt);
+  pauseAnalysis = () => !_isPaused && (_isPaused = true, updateStatus("Analyse mise en pause.", "orange", true) /*, console.log("Pause demandée.")*/ );
+  resumeAnalysis = () => !_isPendingRequest && _isPaused && (_isPaused = false, updateStatus("Analyse en cours...") /*, console.log("Reprise demandée.")*/ , handlePage());
+  updateProgress = () => progressBar.style.width = `${Math.min(_currentPage / _maxPages * 100, 100)}%`;
 
-      if (analyzedPages.has(_currentPage)) {
-        _currentPage++;
-        return handlePage();
-      }
+  copyResults = () => {
+    try {
+      const rows = window.document.querySelectorAll("#results tr");
+      let resultsText = (window.document.querySelector("#summary")?.textContent || "Récap non trouvé.") + "\n\n";
+      rows.forEach(row => {
+        const cells = row.querySelectorAll("td");
+        if (cells.length >= 3)
+          resultsText += `#${cells[0]?.textContent.split(' ')[0] || "?"} : ${cells[1]?.textContent || "?"} -> ${parseInt(cells[2]?.textContent) || 0} ${parseInt(cells[2]?.textContent) === 1 ? "message" : "messages"}\n`;
+      });
+      navigator.clipboard.writeText(resultsText.replace(/Pages restantes.*\n|Analyse terminée.\n/, ''))
+        .then(() => showNotification("Résultats copiés dans le presse-papiers !", "success"))
+        .catch(err => showNotification("Échec de la copie des résultats.", "error"));
+    } catch (e) {
+      showNotification("Erreur : " + e.message, "error");
+    }
+  };
 
-      updateSummary();
-      const path = location.pathname.split("-").map((_, i) => i === 3 ? _currentPage : _).join("-");
+  handlePage();
 
-      try {
-        _isPendingRequest = true;
-        const startTime = Date.now();
-        const response = await fetch(path);
-        const loadTime = Date.now() - startTime;
+  async function handlePage(attempt = 1) {
 
-        loadTime > 2000 && ( /*console.log(`Rate limit détecté (${loadTime} ms). Pause forcée de 7 secondes...`),*/ await new Promise(resolve => setTimeout(resolve, 7000)));
+    _isPaused && await new Promise((resolve) => setTimeout(resolve, 100)) && handlePage(attempt);
 
-        switch (true) {
-          case response.redirected:
-            updateResults();
-            updateStatus(
-              _currentPage > _maxPages ? "Analyse terminée." : "Analyse mise en pause.",
-              _currentPage > _maxPages ? "green bold" : "orange", true
-            );
-            _isPendingRequest = false;
-            return;
-        }
-
-        const body = await response.text();
-        const doc = document.implementation.createHTMLDocument();
-        let messagesOnPage = 0;
-
-        doc.documentElement.innerHTML = body;
-        doc.querySelectorAll(".bloc-pseudo-msg").forEach(
-          (messageElement) => {
-            const pseudo = messageElement.innerText.trim();
-            _count.set(pseudo, (_count.get(pseudo) || 0) + 1);
-            messagesOnPage++;
-          }
-        );
-
-        _totalMessages += messagesOnPage;
-        _totalPages++;
-        analyzedPages.add(_currentPage);
-        updateProgress();
-        updateResults();
-        updateSummary();
-        _isPendingRequest = false;
-
-        switch (true) {
-          case (!_isPaused && _currentPage <= _maxPages):
-            _currentPage++;
-            _isPendingRequest = false;
-            handlePage();
-            break;
-
-          case (_currentPage > _maxPages):
-            _isPendingRequest = false;
-            updateStatus("Analyse terminée.", "green bold", true);
-            break;
-
-          default:
-            updateStatus("Analyse mise en pause.", "orange", true);
-            break;
-        }
-
-      } catch (error) {
-        console.error("Erreur sur la page " + _currentPage + ":", error);
-        switch (true) {
-          case (attempt < 50):
-            const delay = Math.min(2 ** attempt * 100, 5000);
-            setTimeout(() => handlePage(attempt + 1), delay);
-            break;
-
-          default:
-            console.error("Échec malgré plusieurs tentatives.");
-            updateStatus("Analyse interrompue.", "red bold", true);
-            _isPendingRequest = false;
-            throw new Error("Analyse interrompue.");
-            break;
-        }
-      }
+    if (analyzedPages.has(_currentPage)) {
+      _currentPage++;
+      return handlePage();
     }
 
-    function updateResults() {
-      resultsTable.innerHTML = "";
-      let sorted = [..._count.entries()].sort((a, b) => b[1] - a[1]);
+    updateSummary();
+    const path = location.pathname.split("-").map((_, i) => i === 3 ? _currentPage : _).join("-");
 
-      sorted.forEach(([pseudo, count], index) => {
-        let row = window.document.createElement("tr");
-        let position = index + 1;
-        let positionChange = "";
-        let previousPosition = _previousPositions.get(pseudo);
+    try {
+      _isPendingRequest = true;
+      const startTime = Date.now();
+      const response = await fetch(path);
+      const loadTime = Date.now() - startTime;
 
-        switch (true) {
-          case typeof previousPosition !== "undefined" && position < previousPosition:
-            positionChange = `<span class="green">⇧ ${previousPosition - position}</span>`;
-            break;
-
-          case typeof previousPosition !== "undefined" && position > previousPosition:
-            positionChange = `<span class="red">⇩ ${position - previousPosition}</span>`;
-            break;
-
-          default:
-            positionChange = "";
-        }
-
-        _previousPositions.set(pseudo, position);
-        row.innerHTML = `<td>${position} ${positionChange}</td><td>${pseudo}</td><td>${count}</td>`;
-
-        if (_currentPage > _maxPages) {
-          row.addEventListener("click", () => {
-            showFusionMenu(pseudo, count, row);
-          });
-
-          row.addEventListener("mouseover", () => {
-            const cells = row.querySelectorAll("td");
-            cells.forEach(cell => {
-              cell.style.backgroundColor = "rgba(0, 0, 0, 0.2)";
-            });
-            row.style.cursor = "pointer";
-          });
-
-          row.addEventListener("mouseout", () => {
-            const cells = row.querySelectorAll("td");
-            cells.forEach(cell => {
-              cell.style.backgroundColor = "";
-            });
-          });
-        }
-        resultsTable.appendChild(row);
-      });
-    }
-
-    function fusionPseudos(targetPseudo, sourcePseudo, count) {
-      if (_count.has(targetPseudo)) {
-        _count.set(targetPseudo, _count.get(targetPseudo) + count);
-      } else {
-        _count.set(targetPseudo, count);
-      }
-
-      _count.delete(sourcePseudo);
-      _previousPositions.delete(sourcePseudo);
-    }
-
-    function showFusionMenu(pseudo, count, row) {
-      const overlay = window.document.createElement("div");
-      overlay.style.position = "fixed";
-      overlay.style.top = "0";
-      overlay.style.left = "0";
-      overlay.style.width = "100%";
-      overlay.style.height = "100%";
-      overlay.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-      overlay.style.zIndex = "99";
-      overlay.style.display = "flex";
-      overlay.style.alignItems = "center";
-      overlay.style.justifyContent = "center";
-
-      const menu = window.document.createElement("div");
-      menu.style.backgroundColor = "#2c2f33";
-      menu.style.border = "1px solid #40444b";
-      menu.style.borderRadius = "12px";
-      menu.style.padding = "25px";
-      menu.style.width = "350px";
-      menu.style.maxWidth = "90%";
-      menu.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.5)";
-      menu.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-      menu.style.color = "#ffffff";
-      menu.style.position = "relative";
-      menu.style.transform = "scale(0.9)";
-      menu.style.opacity = "0";
-      menu.style.transition = "transform 0.3s ease, opacity 0.3s ease";
-
-      const title = window.document.createElement("h3");
-      title.textContent = "Fusionner les pseudos";
-      title.style.fontSize = "18px";
-      title.style.marginBottom = "15px";
-      title.style.textAlign = "center";
-      title.style.color = "#6064f4";
-      title.style.fontWeight = "600";
-      menu.appendChild(title);
-
-      const description = window.document.createElement("p");
-      description.textContent = `Vous allez fusionner le pseudo "${pseudo}" avec un autre. Le pseudo sélectionné dans le menu déroulant disparaîtra du tableau et sera fusionné.`;
-      description.style.fontSize = "14px";
-      description.style.marginBottom = "20px";
-      description.style.textAlign = "center";
-      description.style.color = "#b9bbbe";
-      description.style.lineHeight = "1.4";
-      menu.appendChild(description);
-
-      const fusionSelect = window.document.createElement("select");
-      fusionSelect.style.width = "100%";
-      fusionSelect.style.height = "45px";
-      fusionSelect.style.marginBottom = "20px";
-      fusionSelect.style.padding = "10px";
-      fusionSelect.style.border = "1px solid #40444b";
-      fusionSelect.style.borderRadius = "8px";
-      fusionSelect.style.backgroundColor = "#1e1f22";
-      fusionSelect.style.color = "#ffffff";
-      fusionSelect.style.fontSize = "14px";
-      fusionSelect.style.cursor = "pointer";
-      fusionSelect.style.outline = "none";
-      fusionSelect.style.transition = "border-color 0.3s ease";
-
-      const defaultOption = window.document.createElement("option");
-      defaultOption.value = "";
-      defaultOption.textContent = "Sélectionnez un pseudo";
-      defaultOption.selected = true;
-      defaultOption.disabled = true;
-      fusionSelect.appendChild(defaultOption);
-
-      const sortedPseudos = [..._count.entries()]
-        .filter(([p, _]) => p !== pseudo)
-        .sort((a, b) => a[0].localeCompare(b[0]));
-
-      for (const [p, c] of sortedPseudos) {
-        const option = window.document.createElement("option");
-        option.value = p;
-        option.textContent = `${p} (${c} ${c > 1 ? "messages" : "message"})`;
-        fusionSelect.appendChild(option);
-      }
-
-      const fusionButton = window.document.createElement("button");
-      fusionButton.textContent = "Fusionner";
-      fusionButton.style.padding = "12px 18px";
-      fusionButton.style.backgroundColor = "#6064f4";
-      fusionButton.style.color = "#ffffff";
-      fusionButton.style.border = "none";
-      fusionButton.style.borderRadius = "8px";
-      fusionButton.style.cursor = "pointer";
-      fusionButton.style.width = "100%";
-      fusionButton.style.marginBottom = "10px";
-      fusionButton.style.fontSize = "16px";
-      fusionButton.style.fontWeight = "600";
-
-      fusionButton.addEventListener("click", () => {
-        const sourcePseudo = fusionSelect.value;
-        if (sourcePseudo) {
-          fusionPseudos(pseudo, sourcePseudo, _count.get(sourcePseudo));
-          overlay.remove();
-          updateResults();
-        }
-      });
-
-      const cancelButton = window.document.createElement("button");
-      cancelButton.textContent = "Annuler";
-      cancelButton.style.padding = "12px 18px";
-      cancelButton.style.backgroundColor = "#ff4d4d";
-      cancelButton.style.color = "#ffffff";
-      cancelButton.style.border = "none";
-      cancelButton.style.borderRadius = "8px";
-      cancelButton.style.cursor = "pointer";
-      cancelButton.style.width = "100%";
-
-      cancelButton.addEventListener("click", () => {
-        overlay.remove();
-      });
-
-      menu.appendChild(fusionSelect);
-      menu.appendChild(fusionButton);
-      menu.appendChild(cancelButton);
-
-      overlay.appendChild(menu);
-      window.document.body.appendChild(overlay);
-
-      requestAnimationFrame(() => {
-        menu.style.transform = "scale(1)";
-        menu.style.opacity = "1";
-      });
-
-      const handleEscKey = (e) => {
-        if (e.key === "Escape") {
-          overlay.remove();
-        }
-      };
-      window.addEventListener("keydown", handleEscKey);
-    }
-
-    function updateStatus(text, className = "green", isPaused = false) {
-      const spinner = '<span id="spinner"></span>';
-      statusElement.innerHTML = `${isPaused || _isPendingRequest ? "" : spinner} ${text}`;
-      statusElement.className = `status ${className}`;
-
-      const pauseButton = window.document.querySelector(".controls button:first-child");
-      const resumeButton = window.document.querySelector(".controls button:nth-child(2)");
+      loadTime > 2000 && ( /*console.log(`Rate limit détecté (${loadTime} ms). Pause forcée de 7 secondes...`),*/ await new Promise(resolve => setTimeout(resolve, 7000)));
 
       switch (true) {
-        case text.includes("Analyse mise en pause.") && !_isPendingRequest:
-          resumeButton.classList.add("active");
-          resumeButton.classList.remove("disabled");
-          resumeButton.removeAttribute("disabled");
-          pauseButton.classList.add("disabled");
-          pauseButton.setAttribute("disabled", "true");
+        case response.redirected:
+          updateResults();
+          updateStatus(
+            _currentPage > _maxPages ? "Analyse terminée." : "Analyse mise en pause.",
+            _currentPage > _maxPages ? "green bold" : "orange", true
+          );
+          _isPendingRequest = false;
+          return;
+      }
+
+      const body = await response.text();
+      const doc = document.implementation.createHTMLDocument();
+      let messagesOnPage = 0;
+
+      doc.documentElement.innerHTML = body;
+      doc.querySelectorAll(".bloc-pseudo-msg").forEach(
+        (messageElement) => {
+          const pseudo = messageElement.innerText.trim();
+          _count.set(pseudo, (_count.get(pseudo) || 0) + 1);
+          messagesOnPage++;
+        }
+      );
+
+      _totalMessages += messagesOnPage;
+      _totalPages++;
+      analyzedPages.add(_currentPage);
+      updateProgress();
+      updateResults();
+      updateSummary();
+      _isPendingRequest = false;
+
+      switch (true) {
+        case (!_isPaused && _currentPage <= _maxPages):
+          _currentPage++;
+          _isPendingRequest = false;
+          handlePage();
           break;
 
-        case text.includes("Analyse mise en pause.") && _isPendingRequest:
-          resumeButton.classList.remove("active");
-          resumeButton.classList.add("disabled");
-          resumeButton.setAttribute("disabled", "true");
-          pauseButton.classList.add("disabled");
-          pauseButton.setAttribute("disabled", "true");
-          break;
-
-        case text.includes("Analyse terminée."):
-          resumeButton.classList.add("disabled");
-          resumeButton.setAttribute("disabled", "true");
-          pauseButton.classList.add("disabled");
-          pauseButton.setAttribute("disabled", "true");
+        case (_currentPage > _maxPages):
+          _isPendingRequest = false;
+          updateStatus("Analyse terminée.", "green bold", true);
           break;
 
         default:
-          resumeButton.classList.remove("active");
-          resumeButton.classList.add("disabled");
-          resumeButton.setAttribute("disabled", "true");
-          pauseButton.classList.remove("disabled");
-          pauseButton.removeAttribute("disabled");
+          updateStatus("Analyse mise en pause.", "orange", true);
+          break;
+      }
+
+    } catch (error) {
+      console.error("Erreur sur la page " + _currentPage + ":", error);
+      switch (true) {
+        case (attempt < 50):
+          const delay = Math.min(2 ** attempt * 100, 5000);
+          setTimeout(() => handlePage(attempt + 1), delay);
+          break;
+
+        default:
+          console.error("Échec malgré plusieurs tentatives.");
+          updateStatus("Analyse interrompue.", "red bold", true);
+          _isPendingRequest = false;
+          showNotification("Erreur : " + error.message, "error");
+          throw new Error("Analyse interrompue.");
           break;
       }
     }
+  }
 
-    function updateSummary() {
-      const totalTime = Date.now() - _startTime;
-      const pagesRemaining = _currentPage <= _maxPages ? _maxPages - _currentPage + 1 : "Aucune";
-      const summary =
-        `<div class="topic-title bold">Titre du topic : ${topicTitle}</div>\n` +
-        "Total de messages analysés : " + _totalMessages + "<br>\n" +
-        "Pages restantes : " + pagesRemaining + "<br>\n" +
-        "Total de pages analysées : " + _totalPages + "<br>\n" +
-        "Durée totale de l'analyse : " + new Date(totalTime).toISOString().substr(11, 8);
-      summaryElement.innerHTML = summary;
-    }
+  function updateResults() {
+    resultsTable.innerHTML = "";
+    let sorted = [..._count.entries()].sort((a, b) => b[1] - a[1]);
 
-    async function checkScriptVersion() {
-      try {
-        const response = await fetch('https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/Analysis-tool-thread.js');
-        const onlineScript = await response.text();
-        const onlineScriptVersion = onlineScript.match(/const scriptVersion = "(.+)";/)[1];
+    sorted.forEach(([pseudo, count], index) => {
+      let row = window.document.createElement("tr");
+      let position = index + 1;
+      let positionChange = "";
+      let previousPosition = _previousPositions.get(pseudo);
 
-        if (onlineScriptVersion !== scriptVersion) {
-          console.warn(`Analysis-tool-for-jeuxvideo.com-threads → Vous utilisez actuellement une ancienne version du script (${scriptVersion}). Une nouvelle version du script (${onlineScriptVersion}) est disponible : https://github.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads`)
-        } else {
-          console.log(`Analysis-tool-for-jeuxvideo.com-threads → Vous utilisez bien la dernière version du script : ${scriptVersion} 👍`);
-        }
-      } catch (error) {
-        console.error('Analysis-tool-for-jeuxvideo.com-threads → Erreur lors de la vérification de la version du script :', error);
+      switch (true) {
+        case typeof previousPosition !== "undefined" && position < previousPosition:
+          positionChange = `<span class="green">⇧ ${previousPosition - position}</span>`;
+          break;
+
+        case typeof previousPosition !== "undefined" && position > previousPosition:
+          positionChange = `<span class="red">⇩ ${position - previousPosition}</span>`;
+          break;
+
+        default:
+          positionChange = "";
       }
+
+      _previousPositions.set(pseudo, position);
+      row.innerHTML = `<td>${position} ${positionChange}</td><td>${pseudo}</td><td>${count}</td>`;
+
+      if (_currentPage > _maxPages) {
+        row.addEventListener("click", () => {
+          showFusionMenu(pseudo, count, row);
+        });
+
+        row.addEventListener("mouseover", () => {
+          const cells = row.querySelectorAll("td");
+          cells.forEach(cell => {
+            cell.style.backgroundColor = "rgba(0, 0, 0, 0.2)";
+          });
+          row.style.cursor = "pointer";
+        });
+
+        row.addEventListener("mouseout", () => {
+          const cells = row.querySelectorAll("td");
+          cells.forEach(cell => {
+            cell.style.backgroundColor = "";
+          });
+        });
+      }
+      resultsTable.appendChild(row);
+    });
+  }
+
+  function fusionPseudos(targetPseudo, sourcePseudo, count) {
+    if (_count.has(targetPseudo)) {
+      _count.set(targetPseudo, _count.get(targetPseudo) + count);
+    } else {
+      _count.set(targetPseudo, count);
     }
 
-  })();
+    _count.delete(sourcePseudo);
+    _previousPositions.delete(sourcePseudo);
+  }
+
+  function showFusionMenu(pseudo, count, row) {
+    const overlay = window.document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+    overlay.style.zIndex = "99";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+
+    const menu = window.document.createElement("div");
+    menu.style.backgroundColor = "#2c2f33";
+    menu.style.border = "1px solid #40444b";
+    menu.style.borderRadius = "12px";
+    menu.style.padding = "25px";
+    menu.style.width = "350px";
+    menu.style.maxWidth = "90%";
+    menu.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.5)";
+    menu.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+    menu.style.color = "#ffffff";
+    menu.style.position = "relative";
+    menu.style.transform = "scale(0.9)";
+    menu.style.opacity = "0";
+    menu.style.transition = "transform 0.3s ease, opacity 0.3s ease";
+
+    const title = window.document.createElement("h3");
+    title.textContent = "Fusionner les pseudos";
+    title.style.fontSize = "18px";
+    title.style.marginBottom = "15px";
+    title.style.textAlign = "center";
+    title.style.color = "#6064f4";
+    title.style.fontWeight = "600";
+    menu.appendChild(title);
+
+    const description = window.document.createElement("p");
+    description.textContent = `Vous allez fusionner le pseudo "${pseudo}" avec un autre. Le pseudo sélectionné dans le menu déroulant disparaîtra du tableau et sera fusionné.`;
+    description.style.fontSize = "14px";
+    description.style.marginBottom = "20px";
+    description.style.textAlign = "center";
+    description.style.color = "#b9bbbe";
+    description.style.lineHeight = "1.4";
+    menu.appendChild(description);
+
+    const fusionSelect = window.document.createElement("select");
+    fusionSelect.style.width = "100%";
+    fusionSelect.style.height = "45px";
+    fusionSelect.style.marginBottom = "20px";
+    fusionSelect.style.padding = "10px";
+    fusionSelect.style.border = "1px solid #40444b";
+    fusionSelect.style.borderRadius = "8px";
+    fusionSelect.style.backgroundColor = "#1e1f22";
+    fusionSelect.style.color = "#ffffff";
+    fusionSelect.style.fontSize = "14px";
+    fusionSelect.style.cursor = "pointer";
+    fusionSelect.style.outline = "none";
+    fusionSelect.style.transition = "border-color 0.3s ease";
+
+    const defaultOption = window.document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "Sélectionnez un pseudo";
+    defaultOption.selected = true;
+    defaultOption.disabled = true;
+    fusionSelect.appendChild(defaultOption);
+
+    const sortedPseudos = [..._count.entries()]
+      .filter(([p, _]) => p !== pseudo)
+      .sort((a, b) => a[0].localeCompare(b[0]));
+
+    for (const [p, c] of sortedPseudos) {
+      const option = window.document.createElement("option");
+      option.value = p;
+      option.textContent = `${p} (${c} ${c > 1 ? "messages" : "message"})`;
+      fusionSelect.appendChild(option);
+    }
+
+    const fusionButton = window.document.createElement("button");
+    fusionButton.textContent = "Fusionner";
+    fusionButton.style.padding = "12px 18px";
+    fusionButton.style.backgroundColor = "#6064f4";
+    fusionButton.style.color = "#ffffff";
+    fusionButton.style.border = "none";
+    fusionButton.style.borderRadius = "8px";
+    fusionButton.style.cursor = "pointer";
+    fusionButton.style.width = "100%";
+    fusionButton.style.marginBottom = "10px";
+    fusionButton.style.fontSize = "16px";
+    fusionButton.style.fontWeight = "600";
+
+    fusionButton.addEventListener("click", () => {
+      const sourcePseudo = fusionSelect.value;
+      if (sourcePseudo) {
+        fusionPseudos(pseudo, sourcePseudo, _count.get(sourcePseudo));
+        overlay.remove();
+        updateResults();
+      }
+    });
+
+    const cancelButton = window.document.createElement("button");
+    cancelButton.textContent = "Annuler";
+    cancelButton.style.padding = "12px 18px";
+    cancelButton.style.backgroundColor = "#ff4d4d";
+    cancelButton.style.color = "#ffffff";
+    cancelButton.style.border = "none";
+    cancelButton.style.borderRadius = "8px";
+    cancelButton.style.cursor = "pointer";
+    cancelButton.style.width = "100%";
+
+    cancelButton.addEventListener("click", () => {
+      overlay.remove();
+    });
+
+    menu.appendChild(fusionSelect);
+    menu.appendChild(fusionButton);
+    menu.appendChild(cancelButton);
+
+    overlay.appendChild(menu);
+    window.document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+      menu.style.transform = "scale(1)";
+      menu.style.opacity = "1";
+    });
+
+    const handleEscKey = (e) => {
+      if (e.key === "Escape") {
+        overlay.remove();
+      }
+    };
+    window.addEventListener("keydown", handleEscKey);
+  }
+
+  function updateStatus(text, className = "green", isPaused = false) {
+    const spinner = '<span id="spinner"></span>';
+    statusElement.innerHTML = `${isPaused || _isPendingRequest ? "" : spinner} ${text}`;
+    statusElement.className = `status ${className}`;
+
+    const pauseButton = window.document.querySelector(".controls button:first-child");
+    const resumeButton = window.document.querySelector(".controls button:nth-child(2)");
+
+    switch (true) {
+      case text.includes("Analyse mise en pause.") && !_isPendingRequest:
+        resumeButton.classList.add("active");
+        resumeButton.classList.remove("disabled");
+        resumeButton.removeAttribute("disabled");
+        pauseButton.classList.add("disabled");
+        pauseButton.setAttribute("disabled", "true");
+        break;
+
+      case text.includes("Analyse mise en pause.") && _isPendingRequest:
+        resumeButton.classList.remove("active");
+        resumeButton.classList.add("disabled");
+        resumeButton.setAttribute("disabled", "true");
+        pauseButton.classList.add("disabled");
+        pauseButton.setAttribute("disabled", "true");
+        break;
+
+      case text.includes("Analyse terminée."):
+        resumeButton.classList.add("disabled");
+        resumeButton.setAttribute("disabled", "true");
+        pauseButton.classList.add("disabled");
+        pauseButton.setAttribute("disabled", "true");
+        break;
+
+      default:
+        resumeButton.classList.remove("active");
+        resumeButton.classList.add("disabled");
+        resumeButton.setAttribute("disabled", "true");
+        pauseButton.classList.remove("disabled");
+        pauseButton.removeAttribute("disabled");
+        break;
+    }
+  }
+
+  function updateSummary() {
+    const totalTime = Date.now() - _startTime;
+    const pagesRemaining = _currentPage <= _maxPages ? _maxPages - _currentPage + 1 : "Aucune";
+    const summary =
+      `<div class="topic-title bold">Titre du topic : ${topicTitle}</div>\n` +
+      "Total de messages analysés : " + _totalMessages + "<br>\n" +
+      "Pages restantes : " + pagesRemaining + "<br>\n" +
+      "Total de pages analysées : " + _totalPages + "<br>\n" +
+      "Durée totale de l'analyse : " + new Date(totalTime).toISOString().substr(11, 8);
+    summaryElement.innerHTML = summary;
+  }
+
+  async function checkScriptVersion() {
+    try {
+      const response = await fetch('https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/Analysis-tool-thread.js');
+      const onlineScript = await response.text();
+      const onlineScriptVersion = onlineScript.match(/const scriptVersion = "(.+)";/)[1];
+
+      if (onlineScriptVersion !== scriptVersion) {
+        console.warn(`Analysis-tool-for-jeuxvideo.com-threads → Vous utilisez actuellement une ancienne version du script (${scriptVersion}). Une nouvelle version du script (${onlineScriptVersion}) est disponible : https://github.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads`)
+      } else {
+        console.log(`Analysis-tool-for-jeuxvideo.com-threads → Vous utilisez bien la dernière version du script : ${scriptVersion} 👍`);
+      }
+    } catch (error) {
+      showNotification("Erreur lors de la vérification de la version du script : " + error.message, "error");
+      console.error('Analysis-tool-for-jeuxvideo.com-threads → Erreur lors de la vérification de la version du script :', error);
+    }
+  }
+
+ })();

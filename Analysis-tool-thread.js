@@ -56,7 +56,8 @@
       `;
 
       const description = document.createElement('p');
-      description.textContent = `Ce topic contient ${_maxPages} pages. À partir de quelle page souhaitez-vous commencer l'analyse ?`;
+      const pageText = _maxPages === 1 ? '1 page' : ` ${_maxPages} pages`;
+      description.textContent = `Ce topic contient ${pageText}. À partir de quelle page souhaitez-vous commencer l'analyse ?`;
       description.style.cssText = `
         color: #b9bbbe;
         margin-bottom: 20px;

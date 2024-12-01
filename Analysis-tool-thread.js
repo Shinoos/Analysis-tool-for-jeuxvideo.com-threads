@@ -1,17 +1,17 @@
  (async function main() {
-  const scriptVersion = "v1.2.3";
+  const scriptVersion = "v1.2.4";
   checkScriptVersion();
-  let _currentPage = 1;
-  let _count = new Map();
-  let _totalMessages = 0;
-  let _totalPages = 0;
-  let _isPaused = false;
-  let _isPendingRequest = false;
+  let currentPage = 1;
+  let messagesCount = new Map();
+  let totalMessages = 0;
+  let totalPages = 0;
+  let isPaused = false;
+  let isPendingRequest = false;
   const analyzedPages = new Set();
-  const _previousPositions = new Map();
+  const previousPositions = new Map();
   const pagination = document.querySelector(".bloc-liste-num-page");
-  const _maxPages = pagination ? (pagination.querySelectorAll("a.xXx.lien-jv").length > 0 ? parseInt(pagination.querySelectorAll("a.xXx.lien-jv")[Math.max(0, pagination.querySelectorAll("a.xXx.lien-jv").length - (pagination.querySelectorAll("a.xXx.lien-jv").length > 11 ? 2 : 1))].textContent, 10) || 1 : 1) : 1;
-  const _startTime = Date.now();
+  const maxPages = pagination ? (pagination.querySelectorAll("a.xXx.lien-jv").length > 0 ? parseInt(pagination.querySelectorAll("a.xXx.lien-jv")[Math.max(0, pagination.querySelectorAll("a.xXx.lien-jv").length - (pagination.querySelectorAll("a.xXx.lien-jv").length > 11 ? 2 : 1))].textContent, 10) || 1 : 1) : 1;
+  const startTime = Date.now();
   const topicTitleElement = document.querySelector("#bloc-title-forum");
   const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
 
@@ -93,7 +93,7 @@
       `;
 
       const description = document.createElement('p');
-      const pageText = _maxPages === 1 ? '1 page' : ` ${_maxPages} pages`;
+      const pageText = maxPages === 1 ? '1 page' : ` ${maxPages} pages`;
       description.textContent = `Ce topic contient ${pageText}. À partir de quelle page souhaitez-vous commencer l'analyse ?`;
       description.style.cssText = `
         color: #b9bbbe;
@@ -104,7 +104,7 @@
       const input = document.createElement('input');
       input.type = 'number';
       input.min = 1;
-      input.max = _maxPages;
+      input.max = maxPages;
       input.value = 1;
       input.style.cssText = `
         width: 100%;
@@ -126,8 +126,8 @@
 
       input.addEventListener('input', () => {
         const value = parseInt(input.value, 10) || 1;
-        if (value > _maxPages) {
-          input.value = _maxPages;
+        if (value > maxPages) {
+          input.value = maxPages;
         } else if (value < 1) {
           input.value = 1;
         }
@@ -170,7 +170,7 @@
       });
 
       startButton.addEventListener('click', () => {
-        const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, _maxPages));
+        const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
         overlay.remove();
         resolve(selectedPage);
       });
@@ -192,7 +192,7 @@
 
       window.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
-          const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, _maxPages));
+          const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
           overlay.remove();
           resolve(selectedPage);
         }
@@ -207,7 +207,7 @@
   }
 
   const userInput = await userPageInput();
-  _currentPage = userInput;
+  currentPage = userInput;
 
   window.document.body.innerHTML = `
       <html>
@@ -484,14 +484,14 @@
     }, duration);
   }
 
-  pauseAnalysis = () => !_isPaused && (_isPaused = true, updateStatus("Analyse mise en pause.", "orange", true) /*, console.log("Pause demandée.")*/ );
-  resumeAnalysis = () => !_isPendingRequest && _isPaused && (_isPaused = false, updateStatus("Analyse en cours...") /*, console.log("Reprise demandée.")*/ , handlePage());
-  updateProgress = () => progressBar.style.width = `${Math.min(_currentPage / _maxPages * 100, 100)}%`;
+  pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true) /*, console.log("Pause demandée.")*/ );
+  resumeAnalysis = () => !isPendingRequest && isPaused && (isPaused = false, updateStatus("Analyse en cours...") /*, console.log("Reprise demandée.")*/ , handlePage());
+  updateProgress = () => progressBar.style.width = `${Math.min(currentPage / maxPages * 100, 100)}%`;
 
   copyResults = () => {
     try {
       const rows = window.document.querySelectorAll("#results tr");
-      let resultsText = (window.document.querySelector("#summary")?.textContent || "Récap non trouvé.") + "\n\n";
+      let resultsText = window.document.querySelector("#summary").textContent + "\n\n";
       rows.forEach(row => {
         const cells = row.querySelectorAll("td");
         if (cells.length >= 3)
@@ -499,9 +499,13 @@
       });
       navigator.clipboard.writeText(resultsText.replace(/Pages restantes.*\n|Analyse terminée.\n/, ''))
         .then(() => showNotification("Résultats copiés dans le presse-papiers !", "success"))
-        .catch(err => showNotification("Échec de la copie des résultats.", "error"));
+        .catch(err => {
+          console.error("Échec de la copie des résultats :", err);
+          showNotification("Échec de la copie des résultats.", "error");
+        });
+
     } catch (e) {
-      showNotification("Erreur : " + e.message, "error");
+      showNotification(`Erreur : ${e}`, "error");
     }
   };
 
@@ -509,18 +513,18 @@
 
   async function handlePage(attempt = 1) {
 
-    _isPaused && await new Promise((resolve) => setTimeout(resolve, 100)) && handlePage(attempt);
+    isPaused && await new Promise((resolve) => setTimeout(resolve, 100)) && handlePage(attempt);
 
-    if (analyzedPages.has(_currentPage)) {
-      _currentPage++;
+    if (analyzedPages.has(currentPage)) {
+      currentPage++;
       return handlePage();
     }
 
     updateSummary();
-    const path = location.pathname.split("-").map((_, i) => i === 3 ? _currentPage : _).join("-");
+    const path = location.pathname.split("-").map((_, i) => i === 3 ? currentPage : _).join("-");
 
     try {
-      _isPendingRequest = true;
+      isPendingRequest = true;
       const startTime = Date.now();
       const response = await fetch(path);
       const loadTime = Date.now() - startTime;
@@ -531,10 +535,11 @@
         case response.redirected:
           updateResults();
           updateStatus(
-            _currentPage > _maxPages ? "Analyse terminée." : "Analyse mise en pause.",
-            _currentPage > _maxPages ? "green bold" : "orange", true
+            currentPage > maxPages ? "Analyse terminée." : "Analyse mise en pause.",
+            currentPage > maxPages ? "green bold" : "orange", true
           );
-          _isPendingRequest = false;
+          isPendingRequest = false;
+          showNotification("Analyse terminée ! \n Vous pouvez désormais fusionner des pseudos en cliquant dessus.", "info", 10000);
           return;
       }
 
@@ -546,29 +551,30 @@
       doc.querySelectorAll(".bloc-pseudo-msg").forEach(
         (messageElement) => {
           const pseudo = messageElement.innerText.trim();
-          _count.set(pseudo, (_count.get(pseudo) || 0) + 1);
+          messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
           messagesOnPage++;
         }
       );
 
-      _totalMessages += messagesOnPage;
-      _totalPages++;
-      analyzedPages.add(_currentPage);
+      totalMessages += messagesOnPage;
+      totalPages++;
+      analyzedPages.add(currentPage);
       updateProgress();
       updateResults();
       updateSummary();
-      _isPendingRequest = false;
+      isPendingRequest = false;
 
       switch (true) {
-        case (!_isPaused && _currentPage <= _maxPages):
-          _currentPage++;
-          _isPendingRequest = false;
+        case (!isPaused && currentPage <= maxPages):
+          currentPage++;
+          isPendingRequest = false;
           handlePage();
           break;
 
-        case (_currentPage > _maxPages):
-          _isPendingRequest = false;
+        case (currentPage > maxPages):
+          isPendingRequest = false;
           updateStatus("Analyse terminée.", "green bold", true);
+          showNotification("Analyse terminée ! Vous pouvez désormais fusionner des pseudos en cliquant dessus.", "info", 10000);
           break;
 
         default:
@@ -577,7 +583,7 @@
       }
 
     } catch (error) {
-      console.error("Erreur sur la page " + _currentPage + ":", error);
+      console.error("Erreur sur la page " + currentPage + ":", error);
       switch (true) {
         case (attempt < 50):
           const delay = Math.min(2 ** attempt * 100, 5000);
@@ -587,8 +593,8 @@
         default:
           console.error("Échec malgré plusieurs tentatives.");
           updateStatus("Analyse interrompue.", "red bold", true);
-          _isPendingRequest = false;
-          showNotification("Erreur : " + error.message, "error");
+          isPendingRequest = false;
+          showNotification(`Erreur : ${error}`, "error", 30000000);
           throw new Error("Analyse interrompue.");
           break;
       }
@@ -597,13 +603,13 @@
 
   function updateResults() {
     resultsTable.innerHTML = "";
-    let sorted = [..._count.entries()].sort((a, b) => b[1] - a[1]);
+    let sorted = [...messagesCount.entries()].sort((a, b) => b[1] - a[1]);
 
     sorted.forEach(([pseudo, count], index) => {
       let row = window.document.createElement("tr");
       let position = index + 1;
       let positionChange = "";
-      let previousPosition = _previousPositions.get(pseudo);
+      let previousPosition = previousPositions.get(pseudo);
 
       switch (true) {
         case typeof previousPosition !== "undefined" && position < previousPosition:
@@ -618,10 +624,10 @@
           positionChange = "";
       }
 
-      _previousPositions.set(pseudo, position);
+      previousPositions.set(pseudo, position);
       row.innerHTML = `<td>${position} ${positionChange}</td><td>${pseudo}</td><td>${count}</td>`;
 
-      if (_currentPage > _maxPages) {
+      if (currentPage > maxPages) {
         row.addEventListener("click", () => {
           showFusionMenu(pseudo, count, row);
         });
@@ -646,14 +652,9 @@
   }
 
   function fusionPseudos(targetPseudo, sourcePseudo, count) {
-    if (_count.has(targetPseudo)) {
-      _count.set(targetPseudo, _count.get(targetPseudo) + count);
-    } else {
-      _count.set(targetPseudo, count);
-    }
-
-    _count.delete(sourcePseudo);
-    _previousPositions.delete(sourcePseudo);
+    messagesCount.set(targetPseudo, (messagesCount.get(targetPseudo) || 0) + count);
+    messagesCount.delete(sourcePseudo);
+    previousPositions.delete(sourcePseudo);
   }
 
   function showFusionMenu(pseudo, count, row) {
@@ -723,7 +724,7 @@
     defaultOption.disabled = true;
     fusionSelect.appendChild(defaultOption);
 
-    const sortedPseudos = [..._count.entries()]
+    const sortedPseudos = [...messagesCount.entries()]
       .filter(([p, _]) => p !== pseudo)
       .sort((a, b) => a[0].localeCompare(b[0]));
 
@@ -748,11 +749,17 @@
     fusionButton.style.fontWeight = "600";
 
     fusionButton.addEventListener("click", () => {
-      const sourcePseudo = fusionSelect.value;
-      if (sourcePseudo) {
-        fusionPseudos(pseudo, sourcePseudo, _count.get(sourcePseudo));
-        overlay.remove();
-        updateResults();
+      try {
+        const sourcePseudo = fusionSelect.value;
+        if (sourcePseudo) {
+          fusionPseudos(pseudo, sourcePseudo, messagesCount.get(sourcePseudo));
+          overlay.remove();
+          updateResults();
+          showNotification(`Le pseudo ${sourcePseudo} a été fusionné avec ${pseudo}`, "success");
+        }
+      } catch (error) {
+        console.error("Une erreur s'est produite lors de la fusion des pseudos :", error);
+        showNotification("Une erreur est survenue lors de la fusion. Veuillez réessayer.", "error", 5000);
       }
     });
 
@@ -782,24 +789,20 @@
       menu.style.opacity = "1";
     });
 
-    const handleEscKey = (e) => {
-      if (e.key === "Escape") {
-        overlay.remove();
-      }
-    };
-    window.addEventListener("keydown", handleEscKey);
+    window.addEventListener("keydown", (e) => e.key === "Escape" && overlay.remove());
+
   }
 
   function updateStatus(text, className = "green", isPaused = false) {
     const spinner = '<span id="spinner"></span>';
-    statusElement.innerHTML = `${isPaused || _isPendingRequest ? "" : spinner} ${text}`;
+    statusElement.innerHTML = `${isPaused || isPendingRequest ? "" : spinner} ${text}`;
     statusElement.className = `status ${className}`;
 
     const pauseButton = window.document.querySelector(".controls button:first-child");
     const resumeButton = window.document.querySelector(".controls button:nth-child(2)");
 
     switch (true) {
-      case text.includes("Analyse mise en pause.") && !_isPendingRequest:
+      case text.includes("Analyse mise en pause.") && !isPendingRequest:
         resumeButton.classList.add("active");
         resumeButton.classList.remove("disabled");
         resumeButton.removeAttribute("disabled");
@@ -807,7 +810,7 @@
         pauseButton.setAttribute("disabled", "true");
         break;
 
-      case text.includes("Analyse mise en pause.") && _isPendingRequest:
+      case text.includes("Analyse mise en pause.") && isPendingRequest:
         resumeButton.classList.remove("active");
         resumeButton.classList.add("disabled");
         resumeButton.setAttribute("disabled", "true");
@@ -833,13 +836,13 @@
   }
 
   function updateSummary() {
-    const totalTime = Date.now() - _startTime;
-    const pagesRemaining = _currentPage <= _maxPages ? _maxPages - _currentPage + 1 : "Aucune";
+    const totalTime = Date.now() - startTime;
+    const pagesRemaining = currentPage <= maxPages ? maxPages - currentPage + 1 : "Aucune";
     const summary =
       `<div class="topic-title bold">Titre du topic : ${topicTitle}</div>\n` +
-      "Total de messages analysés : " + _totalMessages + "<br>\n" +
+      "Total de messages analysés : " + totalMessages + "<br>\n" +
       "Pages restantes : " + pagesRemaining + "<br>\n" +
-      "Total de pages analysées : " + _totalPages + "<br>\n" +
+      "Total de pages analysées : " + totalPages + "<br>\n" +
       "Durée totale de l'analyse : " + new Date(totalTime).toISOString().substr(11, 8);
     summaryElement.innerHTML = summary;
   }
@@ -856,7 +859,6 @@
         console.log(`Analysis-tool-for-jeuxvideo.com-threads → Vous utilisez bien la dernière version du script : ${scriptVersion} 👍`);
       }
     } catch (error) {
-      showNotification("Erreur lors de la vérification de la version du script : " + error.message, "error");
       console.error('Analysis-tool-for-jeuxvideo.com-threads → Erreur lors de la vérification de la version du script :', error);
     }
   }

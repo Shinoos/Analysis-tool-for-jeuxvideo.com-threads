@@ -1,5 +1,5 @@
  (async function main() {
-  const scriptVersion = "v1.2.4";
+  const scriptVersion = "v1.2.5";
   checkScriptVersion();
   let currentPage = 1;
   let messagesCount = new Map();
@@ -527,9 +527,9 @@
       isPendingRequest = true;
       const startTime = Date.now();
       const response = await fetch(path);
-      const loadTime = Date.now() - startTime;
+      //const loadTime = Date.now() - startTime;
 
-      loadTime > 2000 && ( /*console.log(`Rate limit détecté (${loadTime} ms). Pause forcée de 7 secondes...`),*/ await new Promise(resolve => setTimeout(resolve, 7000)));
+      //loadTime > 2000 && ( /*console.log(`Rate limit détecté (${loadTime} ms). Pause forcée de 7 secondes...`),*/ await new Promise(resolve => setTimeout(resolve, 7000)));
 
       switch (true) {
         case response.redirected:
@@ -610,6 +610,7 @@
       let position = index + 1;
       let positionChange = "";
       let previousPosition = previousPositions.get(pseudo);
+      let percentage = ((count / totalMessages) * 100).toFixed(1);
 
       switch (true) {
         case typeof previousPosition !== "undefined" && position < previousPosition:
@@ -625,7 +626,7 @@
       }
 
       previousPositions.set(pseudo, position);
-      row.innerHTML = `<td>${position} ${positionChange}</td><td>${pseudo}</td><td>${count}</td>`;
+      row.innerHTML = `<td>${position} ${positionChange}</td><td>${pseudo}</td><td>${count} <span style="color: #b9bbbe; font-size: 0.72em;">(${percentage}%)</span></td>`;
 
       if (currentPage > maxPages) {
         row.addEventListener("click", () => {

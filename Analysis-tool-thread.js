@@ -1,5 +1,5 @@
  (async function main() {
-  const scriptVersion = "v1.2.6";
+  const scriptVersion = "v1.3.0";
   checkScriptVersion();
   let currentPage = 1;
   let messagesCount = new Map();
@@ -517,96 +517,174 @@
       return handlePage(attempt);
     }
 
-    if (analyzedPages.has(currentPage)) {
-      currentPage++;
-      return handlePage();
+    if (statusElement.innerHTML !== `<span id="spinner"></span> Analyse en cours...`) {
+      updateStatus("Analyse en cours...", "green", false);
     }
 
-    updateSummary();
-    const path = location.pathname.split("-").map((_, i) => i === 3 ? currentPage : _).join("-");
+    const pagesToProcess = [];
+    const originalCurrentPage = currentPage;
+    for (let i = 0; i < 25 && currentPage <= maxPages; i++) {
+      if (!analyzedPages.has(currentPage)) {
+        pagesToProcess.push(currentPage);
+      }
+      currentPage++;
+    }
+
+    if (pagesToProcess.length === 0) {
+      if (currentPage > maxPages) {
+        updateStatus("Analyse terminée.", "green bold", true);
+        showNotification("Analyse terminée ! Vous pouvez désormais fusionner des pseudos en cliquant dessus.", "info", 10000);
+        updateSummary();
+      }
+      return;
+    }
 
     try {
       isPendingRequest = true;
-      const startTime = Date.now();
-      const response = await fetch(path);
-      //const loadTime = Date.now() - startTime;
 
-      if (response.status === 403) {
+      const pagePromises = pagesToProcess.map(async (page) => {
+        const path = location.pathname.split("-").map((_, i) => i === 3 ? page : _).join("-");
+        try {
+          const response = await fetch(path);
+          if (response.status === 403) {
+            throw new Error(`Erreur 403 sur la page ${page}`);
+          }
+
+          if (response.redirected) {
+            return {
+              page,
+              redirected: true,
+              messagesOnPage: 0,
+              success: true
+            };
+          }
+
+          const body = await response.text();
+          const doc = document.implementation.createHTMLDocument();
+          doc.documentElement.innerHTML = body;
+          let messagesOnPage = 0;
+
+          doc.querySelectorAll(".bloc-pseudo-msg").forEach((messageElement) => {
+            const pseudo = messageElement.innerText.trim();
+            messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
+            messagesOnPage++;
+          });
+
+          return {
+            page,
+            redirected: false,
+            messagesOnPage,
+            success: true
+          };
+        } catch (error) {
+          return {
+            page,
+            success: false,
+            error: error.message
+          };
+        }
+      });
+
+      const results = await Promise.allSettled(pagePromises);
+      let has403Error = false;
+      let pagesProcessed = 0;
+      let failedPages = [];
+
+      results.forEach((result, index) => {
+        const page = pagesToProcess[index];
+        if (result.status === "fulfilled" && result.value.success) {
+          const {
+            redirected,
+            messagesOnPage
+          } = result.value;
+          analyzedPages.add(page);
+          pagesProcessed++;
+          if (!redirected) {
+            totalMessages += messagesOnPage;
+            totalPages++;
+          }
+        } else if (result.status === "fulfilled" && !result.value.success) {
+          console.error(`Erreur sur la page ${page}: ${result.value.error}`);
+          if (result.value.error.includes("Erreur 403")) {
+            has403Error = true;
+          } else {
+            failedPages.push(page);
+          }
+        } else {
+          console.error(`Erreur sur la page ${page}: ${result.reason}`);
+          failedPages.push(page);
+        }
+      });
+
+      isPendingRequest = false;
+
+      if (has403Error) {
+        currentPage = originalCurrentPage;
         isPaused = true;
-        isPendingRequest = false;
         updateStatus("Erreur 403 : Veuillez résoudre le CAPTCHA Cloudflare puis cliquer sur Reprendre.", "red", true);
         showNotification("Erreur 403 détectée.", "error", 10000);
+        updateSummary();
         return;
       }
 
-      //loadTime > 2000 && ( /*console.log(`Rate limit détecté (${loadTime} ms). Pause forcée de 7 secondes...`),*/ await new Promise(resolve => setTimeout(resolve, 7000)));
-
-      switch (true) {
-        case response.redirected:
-          updateResults();
-          updateStatus(
-            currentPage > maxPages ? "Analyse terminée." : "Analyse mise en pause.",
-            currentPage > maxPages ? "green bold" : "orange", true
-          );
-          isPendingRequest = false;
-          showNotification("Analyse terminée ! \n Vous pouvez désormais fusionner des pseudos en cliquant dessus.", "info", 10000);
-          return;
+      if (pagesProcessed > 0) {
+        updateProgress();
+        updateResults();
+        updateSummary();
       }
 
-      const body = await response.text();
-      const doc = document.implementation.createHTMLDocument();
-      let messagesOnPage = 0;
+      const allRedirected = pagesProcessed === pagesToProcess.length && results.every((result) => result.status === "fulfilled" && result.value.success && result.value.redirected);
 
-      doc.documentElement.innerHTML = body;
-      doc.querySelectorAll(".bloc-pseudo-msg").forEach(
-        (messageElement) => {
-          const pseudo = messageElement.innerText.trim();
-          messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
-          messagesOnPage++;
+      if (allRedirected && currentPage > maxPages) {
+        updateStatus("Analyse terminée.", "green bold", true);
+        showNotification("Analyse terminée ! Vous pouvez désormais fusionner des pseudos en cliquant dessus.", "info", 10000);
+        updateSummary();
+        return;
+      }
+
+      if (failedPages.length > 0 && attempt < 50) {
+        currentPage = originalCurrentPage;
+        updateStatus(`Erreur réseau sur ${failedPages.length} page(s), tentative ${attempt}/50.`, "orange", false);
+        showNotification(`Erreur réseau sur ${failedPages.length} page(s), tentative ${attempt}/50.`, "warning", 5000);
+        const delay = Math.min(2 ** attempt * 100, 5000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        const retryPages = failedPages.filter(page => !analyzedPages.has(page));
+        if (retryPages.length > 0) {
+          currentPage = Math.min(...retryPages);
+          return handlePage(attempt + 1);
         }
-      );
+      } else if (failedPages.length > 0) {
+        currentPage = originalCurrentPage;
+        console.error("Échec malgré plusieurs tentatives pour les pages:", failedPages);
+        updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red bold", true);
+        showNotification(`Erreur fatale sur ${failedPages.length} page(s) après 50 tentatives.`, "error", 30000000);
+        updateSummary();
+        return;
+      }
 
-      totalMessages += messagesOnPage;
-      totalPages++;
-      analyzedPages.add(currentPage);
-      updateProgress();
-      updateResults();
-      updateSummary();
-      isPendingRequest = false;
-
-      switch (true) {
-        case (!isPaused && currentPage <= maxPages):
-          currentPage++;
-          isPendingRequest = false;
-          handlePage();
-          break;
-
-        case (currentPage > maxPages):
-          isPendingRequest = false;
-          updateStatus("Analyse terminée.", "green bold", true);
-          showNotification("Analyse terminée ! Vous pouvez désormais fusionner des pseudos en cliquant dessus.", "info", 10000);
-          break;
-
-        default:
-          updateStatus("Analyse mise en pause.", "orange", true);
-          break;
+      if (!isPaused) {
+        handlePage(1);
+      } else {
+        updateStatus("Analyse mise en pause.", "orange", true);
+        updateSummary();
       }
 
     } catch (error) {
-      console.error("Erreur sur la page " + currentPage + ":", error);
-      switch (true) {
-        case (attempt < 50):
-          const delay = Math.min(2 ** attempt * 100, 5000);
-          setTimeout(() => handlePage(attempt + 1), delay);
-          break;
+      console.error("Erreur lors du traitement des pages:", error);
+      currentPage = originalCurrentPage;
+      isPendingRequest = false;
 
-        default:
-          console.error("Échec malgré plusieurs tentatives.");
-          updateStatus("Analyse interrompue.", "red bold", true);
-          isPendingRequest = false;
-          showNotification(`Erreur : ${error}`, "error", 30000000);
-          throw new Error("Analyse interrompue.");
-          break;
+      if (attempt < 50) {
+        updateStatus(`Erreur, tentative ${attempt}/50...`, "orange", false);
+        showNotification(`Erreur, tentative ${attempt}/50 après un délai...`, "warning", 5000);
+        const delay = Math.min(2 ** attempt * 100, 5000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        handlePage(attempt + 1);
+      } else {
+        console.error("Échec malgré plusieurs tentatives.");
+        updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red bold", true);
+        showNotification(`Erreur fatale : ${error.message}`, "error", 30000000);
+        updateSummary();
       }
     }
   }
@@ -856,11 +934,11 @@
 
   function updateSummary() {
     const totalTime = Date.now() - startTime;
-    const pagesRemaining = currentPage <= maxPages ? maxPages - currentPage + 1 : "Aucune";
+    const pagesRemaining = currentPage <= maxPages ? maxPages - currentPage + 1 : 0;
     const summary =
       `<div class="topic-title bold">Titre du topic : ${topicTitle}</div>\n` +
       "Total de messages analysés : " + totalMessages + "<br>\n" +
-      "Pages restantes : " + pagesRemaining + "<br>\n" +
+      "Pages restantes : " + (pagesRemaining > 0 ? pagesRemaining : "Aucune") + "<br>\n" +
       "Total de pages analysées : " + totalPages + "<br>\n" +
       "Durée totale de l'analyse : " + new Date(totalTime).toISOString().substr(11, 8);
     summaryElement.innerHTML = summary;

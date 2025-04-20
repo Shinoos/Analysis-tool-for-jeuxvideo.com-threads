@@ -1,5 +1,5 @@
  (async function main() {
-  const scriptVersion = "v1.2.5";
+  const scriptVersion = "v1.2.6";
   checkScriptVersion();
   let currentPage = 1;
   let messagesCount = new Map();
@@ -512,8 +512,10 @@
   handlePage();
 
   async function handlePage(attempt = 1) {
-
-    isPaused && await new Promise((resolve) => setTimeout(resolve, 100)) && handlePage(attempt);
+    if (isPaused) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return handlePage(attempt);
+    }
 
     if (analyzedPages.has(currentPage)) {
       currentPage++;
@@ -528,6 +530,14 @@
       const startTime = Date.now();
       const response = await fetch(path);
       //const loadTime = Date.now() - startTime;
+
+      if (response.status === 403) {
+        isPaused = true;
+        isPendingRequest = false;
+        updateStatus("Erreur 403 : Veuillez résoudre le CAPTCHA Cloudflare puis cliquer sur Reprendre.", "red", true);
+        showNotification("Erreur 403 détectée.", "error", 10000);
+        return;
+      }
 
       //loadTime > 2000 && ( /*console.log(`Rate limit détecté (${loadTime} ms). Pause forcée de 7 secondes...`),*/ await new Promise(resolve => setTimeout(resolve, 7000)));
 
@@ -803,6 +813,14 @@
     const resumeButton = window.document.querySelector(".controls button:nth-child(2)");
 
     switch (true) {
+      case text.includes("Erreur 403"):
+        resumeButton.classList.add("active");
+        resumeButton.classList.remove("disabled");
+        resumeButton.removeAttribute("disabled");
+        pauseButton.classList.add("disabled");
+        pauseButton.setAttribute("disabled", "true");
+        break;
+
       case text.includes("Analyse mise en pause.") && !isPendingRequest:
         resumeButton.classList.add("active");
         resumeButton.classList.remove("disabled");

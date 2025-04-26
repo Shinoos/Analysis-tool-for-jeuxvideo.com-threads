@@ -1,5 +1,5 @@
  (async function main() {
-  const scriptVersion = "v1.3.0";
+  const scriptVersion = "v1.3.1";
   checkScriptVersion();
   let currentPage = 1;
   let messagesCount = new Map();
@@ -565,9 +565,14 @@
           let messagesOnPage = 0;
 
           doc.querySelectorAll(".bloc-pseudo-msg").forEach((messageElement) => {
-            const pseudo = messageElement.innerText.trim();
-            messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
-            messagesOnPage++;
+            const isBlacklisted = messageElement.closest(".conteneur-message-blacklist") !== null;
+            const pseudoElement = messageElement.querySelector(".text-user") || messageElement;
+            const pseudo = pseudoElement.innerText.trim();
+
+            if (!isBlacklisted && pseudo !== "Auteur blacklisté") {
+              messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
+              messagesOnPage++;
+            }
           });
 
           return {

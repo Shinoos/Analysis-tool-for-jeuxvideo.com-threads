@@ -1,5 +1,5 @@
 (async function main() {
-  const scriptVersion = "v1.4.0";
+  const scriptVersion = "v1.4.1";
   checkScriptVersion();
   let currentPage = 1;
   let messagesCount = new Map();
@@ -854,14 +854,36 @@
     menu.style.opacity = "0";
     menu.style.transition = "transform 0.3s ease, opacity 0.3s ease";
 
+    const titleContainer = window.document.createElement("div");
+    titleContainer.style.display = "flex";
+    titleContainer.style.alignItems = "center";
+    titleContainer.style.justifyContent = "center";
+    titleContainer.style.marginBottom = "15px";
+
     const title = window.document.createElement("h3");
     title.textContent = `${pseudo}`;
     title.style.fontSize = "18px";
-    title.style.marginBottom = "15px";
     title.style.textAlign = "center";
     title.style.color = "#6064f4";
     title.style.fontWeight = "600";
-    menu.appendChild(title);
+    title.style.margin = "0 10px 0 0";
+    titleContainer.appendChild(title);
+
+    const chartButton = window.document.createElement("button");
+    chartButton.textContent = "Graphique";
+    chartButton.style.padding = "4px 8px";
+    chartButton.style.fontSize = "12px";
+    chartButton.style.background = "#6064f4";
+    chartButton.style.color = "#ffffff";
+    chartButton.style.border = "none";
+    chartButton.style.borderRadius = "3px";
+    chartButton.style.cursor = "pointer";
+    chartButton.style.lineHeight = "1.2";
+    chartButton.style.outline = "none";
+    chartButton.addEventListener("click", () => showActivityChart(pseudo));
+    titleContainer.appendChild(chartButton);
+
+    menu.appendChild(titleContainer);
 
     const actionButtons = window.document.createElement("div");
     actionButtons.style.display = "flex";
@@ -953,18 +975,25 @@
       }
     }
 
+    const activeDays = stats.messageDates.size;
+    const messagePerActiveDay = activeDays > 0 ? Math.round(stats.messageCount / activeDays) : 0;
+
     const statsHTML = `
     <div class="stats-container">
       <div class="stats-row">
-        <span class="stats-label">Messages postés :</span>
+        <span class="stats-label">Messages postés:</span>
         <span class="stats-value">${stats.messageCount}</span>
       </div>
       <div class="stats-row">
-        <span class="stats-label">Moyenne caractères/message :</span>
+        <span class="stats-label">Moy. caractères/message:</span>
         <span class="stats-value">${stats.averageChars}</span>
       </div>
       <div class="stats-row">
-        <span class="stats-label">Jour le plus actif :</span>
+        <span class="stats-label">Moy. de messages par jour:</span>
+        <span class="stats-value">${messagePerActiveDay}</span>
+      </div>
+      <div class="stats-row">
+        <span class="stats-label">Jour le plus actif:</span>
         <span class="stats-value">${mostActiveDay} (${maxMessages} messages)</span>
       </div>
     </div>
@@ -972,6 +1001,224 @@
 
     container.innerHTML = statsHTML;
   }
+
+  async function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  async function showActivityChart(pseudo) {
+    const stats = userStats.get(pseudo) || {
+      messageDates: new Map()
+    };
+
+    const dates = [...stats.messageDates.keys()].sort((a, b) => {
+      const months = {
+        'janvier': 0,
+        'février': 1,
+        'mars': 2,
+        'avril': 3,
+        'mai': 4,
+        'juin': 5,
+        'juillet': 6,
+        'août': 7,
+        'septembre': 8,
+        'octobre': 9,
+        'novembre': 10,
+        'décembre': 11
+      };
+
+      const partsA = a.trim().split(/\s+/);
+      const dayA = parseInt(partsA[0], 10);
+      const monthA = months[partsA[1]?.toLowerCase()];
+      const yearA = parseInt(partsA[2], 10);
+
+      const partsB = b.trim().split(/\s+/);
+      const dayB = parseInt(partsB[0], 10);
+      const monthB = months[partsB[1]?.toLowerCase()];
+      const yearB = parseInt(partsB[2], 10);
+
+      if (isNaN(dayA) || monthA === undefined || isNaN(yearA)) {
+        return -1;
+      }
+      if (isNaN(dayB) || monthB === undefined || isNaN(yearB)) {
+        return 1;
+      }
+
+      const dateA = new Date(yearA, monthA, dayA);
+      const dateB = new Date(yearB, monthB, dayB);
+
+      return dateA - dateB;
+    });
+
+    const messageCounts = dates.map(date => stats.messageDates.get(date) || 0);
+
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+    overlay.style.zIndex = "100";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+
+    const chartContainer = document.createElement("div");
+    chartContainer.style.backgroundColor = "#2c2f33";
+    chartContainer.style.border = "1px solid #40444b";
+    chartContainer.style.borderRadius = "12px";
+    chartContainer.style.padding = "25px";
+    chartContainer.style.width = "800px";
+    chartContainer.style.maxWidth = "95%";
+    chartContainer.style.maxHeight = "90%";
+    chartContainer.style.overflowY = "auto";
+    chartContainer.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.5)";
+    chartContainer.style.position = "relative";
+    chartContainer.style.transform = "scale(0.9)";
+    chartContainer.style.opacity = "0";
+    chartContainer.style.transition = "transform 0.3s ease, opacity 0.3s ease";
+
+    const title = document.createElement("h3");
+    title.textContent = `Activité quotidienne de ${pseudo}`;
+    title.style.fontSize = "20px";
+    title.style.marginBottom = "20px";
+    title.style.textAlign = "center";
+    title.style.color = "#6064f4";
+    title.style.fontWeight = "600";
+    chartContainer.appendChild(title);
+
+    const canvas = document.createElement("canvas");
+    canvas.style.maxHeight = "500px";
+    canvas.style.width = "100%";
+    chartContainer.appendChild(canvas);
+
+    const closeButton = document.createElement("button");
+    closeButton.textContent = "Fermer";
+    closeButton.style.width = "100%";
+    closeButton.style.padding = "12px";
+    closeButton.style.backgroundColor = "#ff4d4d";
+    closeButton.style.color = "#ffffff";
+    closeButton.style.border = "none";
+    closeButton.style.borderRadius = "8px";
+    closeButton.style.cursor = "pointer";
+    closeButton.style.marginTop = "20px";
+    closeButton.style.fontSize = "16px";
+    closeButton.addEventListener("click", () => overlay.remove());
+    chartContainer.appendChild(closeButton);
+
+    overlay.appendChild(chartContainer);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+      chartContainer.style.transform = "scale(1)";
+      chartContainer.style.opacity = "1";
+    });
+
+    try {
+      if (typeof Chart === 'undefined') {
+        await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
+      }
+
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: dates.length > 0 ? dates : ['Aucune donnée'],
+          datasets: [{
+            label: 'Messages postés',
+            data: messageCounts.length > 0 ? messageCounts : [0],
+            backgroundColor: '#6064f4',
+            borderColor: '#4346ab',
+            borderWidth: 1,
+            barPercentage: 0.9,
+            categoryPercentage: 0.95
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: {
+            padding: {
+              left: 10,
+              right: 10,
+              top: 10,
+              bottom: 10
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1,
+                color: '#b9bbbe',
+                font: {
+                  size: 14
+                }
+              },
+              grid: {
+                color: '#40444b'
+              },
+              title: {
+                display: true,
+                text: 'Nombre de messages',
+                color: '#b9bbbe',
+                font: {
+                  size: 16
+                }
+              }
+            },
+            x: {
+              ticks: {
+                color: '#b9bbbe',
+                font: {
+                  size: 14
+                },
+                maxRotation: 45,
+                minRotation: 45
+              },
+              grid: {
+                display: false
+              },
+              title: {
+                display: false
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: '#b9bbbe',
+                font: {
+                  size: 16
+                }
+              }
+            },
+            title: {
+              display: false
+            }
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Erreur lors du chargement de Chart.js.', error);
+      canvas.style.display = 'none';
+      const errorMessage = document.createElement('p');
+      errorMessage.textContent = 'Erreur : Impossible de charger le graphique.';
+      errorMessage.style.color = '#ff0000';
+      errorMessage.style.textAlign = 'center';
+      chartContainer.insertBefore(errorMessage, closeButton);
+    }
+
+    window.addEventListener("keydown", (e) => e.key === "Escape" && overlay.remove());
+  }
+
 
   function showFusionMenu(pseudo, count, container) {
     container.innerHTML = "";

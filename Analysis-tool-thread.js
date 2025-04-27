@@ -1,5 +1,5 @@
- (async function main() {
-  const scriptVersion = "v1.3.1";
+(async function main() {
+  const scriptVersion = "v1.4.0";
   checkScriptVersion();
   let currentPage = 1;
   let messagesCount = new Map();
@@ -9,6 +9,7 @@
   let isPendingRequest = false;
   const analyzedPages = new Set();
   const previousPositions = new Map();
+  const userStats = new Map();
   const pagination = document.querySelector(".bloc-liste-num-page");
   const maxPages = pagination ? (pagination.querySelectorAll("a.xXx.lien-jv").length > 0 ? parseInt(pagination.querySelectorAll("a.xXx.lien-jv")[Math.max(0, pagination.querySelectorAll("a.xXx.lien-jv").length - (pagination.querySelectorAll("a.xXx.lien-jv").length > 11 ? 2 : 1))].textContent, 10) || 1 : 1) : 1;
   const startTime = Date.now();
@@ -201,7 +202,6 @@
           overlay.remove();
           return;
         }
-
       });
     });
   }
@@ -427,6 +427,23 @@
          margin-bottom: 10px;
          color: #b9bbbe;
         }
+        .stats-container {
+          margin-top: 15px;
+          padding: 15px;
+          background: #28292d;
+          border-radius: 8px;
+        }
+        .stats-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+        .stats-label {
+          color: #b9bbbe;
+        }
+        .stats-value {
+          font-weight: bold;
+        }
       </style>
     </head>
     <body>
@@ -484,8 +501,8 @@
     }, duration);
   }
 
-  pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true) /*, console.log("Pause demandée.")*/ );
-  resumeAnalysis = () => !isPendingRequest && isPaused && (isPaused = false, updateStatus("Analyse en cours...") /*, console.log("Reprise demandée.")*/ , handlePage());
+  pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true));
+  resumeAnalysis = () => !isPendingRequest && isPaused && (isPaused = false, updateStatus("Analyse en cours..."), handlePage());
   updateProgress = () => progressBar.style.width = `${Math.min(currentPage / maxPages * 100, 100)}%`;
 
   copyResults = () => {
@@ -533,7 +550,7 @@
     if (pagesToProcess.length === 0) {
       if (currentPage > maxPages) {
         updateStatus("Analyse terminée.", "green bold", true);
-        showNotification("Analyse terminée ! Vous pouvez désormais fusionner des pseudos en cliquant dessus.", "info", 10000);
+        showNotification("Analyse terminée ! Vous pouvez désormais interagir avec les pseudos en cliquant dessus.", "info", 10000);
         updateSummary();
       }
       return;
@@ -572,6 +589,41 @@
             if (!isBlacklisted && pseudo !== "Auteur blacklisté") {
               messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
               messagesOnPage++;
+
+              const messageContainer = messageElement.closest(".conteneur-message");
+              if (messageContainer) {
+                const dateElement = messageContainer.querySelector(".bloc-date-msg");
+                let messageDate = null;
+                if (dateElement) {
+                  const dateText = dateElement.textContent.trim();
+                  messageDate = dateText.split(' à ')[0];
+                }
+
+                if (!userStats.has(pseudo)) {
+                  userStats.set(pseudo, {
+                    totalChars: 0,
+                    messageCount: 0,
+                    averageChars: 0,
+                    messageDates: new Map()
+                  });
+                }
+                const stats = userStats.get(pseudo);
+                stats.messageCount++;
+                if (messageDate) {
+                  stats.messageDates.set(messageDate, (stats.messageDates.get(messageDate) || 0) + 1);
+                }
+
+                const messageContent = messageContainer.querySelector(".txt-msg");
+                if (messageContent) {
+                  const tempDiv = document.createElement('div');
+                  tempDiv.innerHTML = messageContent.innerHTML;
+                  tempDiv.querySelectorAll('a').forEach(a => a.remove());
+                  const textContent = tempDiv.textContent || '';
+                  const charCount = textContent.replace(/\s+/g, '').length;
+                  stats.totalChars += charCount;
+                  stats.averageChars = Math.round(stats.totalChars / stats.messageCount);
+                }
+              }
             }
           });
 
@@ -642,7 +694,7 @@
 
       if (allRedirected && currentPage > maxPages) {
         updateStatus("Analyse terminée.", "green bold", true);
-        showNotification("Analyse terminée ! Vous pouvez désormais fusionner des pseudos en cliquant dessus.", "info", 10000);
+        showNotification("Analyse terminée ! Vous pouvez désormais interagir avec les pseudos en cliquant dessus.", "info", 10000);
         updateSummary();
         return;
       }
@@ -722,8 +774,9 @@
       row.innerHTML = `<td>${position} ${positionChange}</td><td>${pseudo}</td><td>${count} <span style="color: #b9bbbe; font-size: 0.72em;">(${percentage}%)</span></td>`;
 
       if (currentPage > maxPages) {
-        row.addEventListener("click", () => {
-          showFusionMenu(pseudo, count, row);
+        row.addEventListener("click", (e) => {
+          if (e.target.tagName !== 'TD') return;
+          showUserActionMenu(pseudo, count, row);
         });
 
         row.addEventListener("mouseover", () => {
@@ -749,9 +802,31 @@
     messagesCount.set(targetPseudo, (messagesCount.get(targetPseudo) || 0) + count);
     messagesCount.delete(sourcePseudo);
     previousPositions.delete(sourcePseudo);
+
+    if (userStats.has(sourcePseudo)) {
+      const sourceStats = userStats.get(sourcePseudo);
+      if (!userStats.has(targetPseudo)) {
+        userStats.set(targetPseudo, {
+          totalChars: 0,
+          messageCount: 0,
+          averageChars: 0,
+          messageDates: new Map()
+        });
+      }
+      const targetStats = userStats.get(targetPseudo);
+      targetStats.totalChars += sourceStats.totalChars;
+      targetStats.messageCount += sourceStats.messageCount;
+      targetStats.averageChars = Math.round(targetStats.totalChars / targetStats.messageCount);
+
+      for (const [date, count] of sourceStats.messageDates) {
+        targetStats.messageDates.set(date, (targetStats.messageDates.get(date) || 0) + count);
+      }
+
+      userStats.delete(sourcePseudo);
+    }
   }
 
-  function showFusionMenu(pseudo, count, row) {
+  function showUserActionMenu(pseudo, count, row) {
     const overlay = window.document.createElement("div");
     overlay.style.position = "fixed";
     overlay.style.top = "0";
@@ -769,7 +844,7 @@
     menu.style.border = "1px solid #40444b";
     menu.style.borderRadius = "12px";
     menu.style.padding = "25px";
-    menu.style.width = "350px";
+    menu.style.width = "450px";
     menu.style.maxWidth = "90%";
     menu.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.5)";
     menu.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
@@ -780,7 +855,7 @@
     menu.style.transition = "transform 0.3s ease, opacity 0.3s ease";
 
     const title = window.document.createElement("h3");
-    title.textContent = "Fusionner les pseudos";
+    title.textContent = `${pseudo}`;
     title.style.fontSize = "18px";
     title.style.marginBottom = "15px";
     title.style.textAlign = "center";
@@ -788,91 +863,64 @@
     title.style.fontWeight = "600";
     menu.appendChild(title);
 
-    const description = window.document.createElement("p");
-    description.textContent = `Vous allez fusionner le pseudo "${pseudo}" avec un autre. Le pseudo sélectionné dans le menu déroulant disparaîtra du tableau et sera fusionné.`;
-    description.style.fontSize = "14px";
-    description.style.marginBottom = "20px";
-    description.style.textAlign = "center";
-    description.style.color = "#b9bbbe";
-    description.style.lineHeight = "1.4";
-    menu.appendChild(description);
+    const actionButtons = window.document.createElement("div");
+    actionButtons.style.display = "flex";
+    actionButtons.style.gap = "10px";
+    actionButtons.style.marginBottom = "20px";
 
-    const fusionSelect = window.document.createElement("select");
-    fusionSelect.style.width = "100%";
-    fusionSelect.style.height = "45px";
-    fusionSelect.style.marginBottom = "20px";
-    fusionSelect.style.padding = "10px";
-    fusionSelect.style.border = "1px solid #40444b";
-    fusionSelect.style.borderRadius = "8px";
-    fusionSelect.style.backgroundColor = "#1e1f22";
-    fusionSelect.style.color = "#ffffff";
-    fusionSelect.style.fontSize = "14px";
-    fusionSelect.style.cursor = "pointer";
-    fusionSelect.style.outline = "none";
-    fusionSelect.style.transition = "border-color 0.3s ease";
-
-    const defaultOption = window.document.createElement("option");
-    defaultOption.value = "";
-    defaultOption.textContent = "Sélectionnez un pseudo";
-    defaultOption.selected = true;
-    defaultOption.disabled = true;
-    fusionSelect.appendChild(defaultOption);
-
-    const sortedPseudos = [...messagesCount.entries()]
-      .filter(([p, _]) => p !== pseudo)
-      .sort((a, b) => a[0].localeCompare(b[0]));
-
-    for (const [p, c] of sortedPseudos) {
-      const option = window.document.createElement("option");
-      option.value = p;
-      option.textContent = `${p} (${c} ${c > 1 ? "messages" : "message"})`;
-      fusionSelect.appendChild(option);
-    }
+    const infoButton = window.document.createElement("button");
+    infoButton.textContent = "Plus d'infos";
+    infoButton.style.flex = "1";
+    infoButton.style.padding = "12px";
+    infoButton.style.backgroundColor = "#6064f4";
+    infoButton.style.color = "#ffffff";
+    infoButton.style.border = "none";
+    infoButton.style.borderRadius = "8px";
+    infoButton.style.cursor = "pointer";
+    infoButton.style.fontSize = "16px";
+    infoButton.style.fontWeight = "600";
 
     const fusionButton = window.document.createElement("button");
     fusionButton.textContent = "Fusionner";
-    fusionButton.style.padding = "12px 18px";
-    fusionButton.style.backgroundColor = "#6064f4";
+    fusionButton.style.flex = "1";
+    fusionButton.style.padding = "12px";
+    fusionButton.style.backgroundColor = "#d39100";
     fusionButton.style.color = "#ffffff";
     fusionButton.style.border = "none";
     fusionButton.style.borderRadius = "8px";
     fusionButton.style.cursor = "pointer";
-    fusionButton.style.width = "100%";
-    fusionButton.style.marginBottom = "10px";
     fusionButton.style.fontSize = "16px";
     fusionButton.style.fontWeight = "600";
 
-    fusionButton.addEventListener("click", () => {
-      try {
-        const sourcePseudo = fusionSelect.value;
-        if (sourcePseudo) {
-          fusionPseudos(pseudo, sourcePseudo, messagesCount.get(sourcePseudo));
-          overlay.remove();
-          updateResults();
-          showNotification(`Le pseudo ${sourcePseudo} a été fusionné avec ${pseudo}`, "success");
-        }
-      } catch (error) {
-        console.error("Une erreur s'est produite lors de la fusion des pseudos :", error);
-        showNotification("Une erreur est survenue lors de la fusion. Veuillez réessayer.", "error", 5000);
-      }
-    });
-
     const cancelButton = window.document.createElement("button");
-    cancelButton.textContent = "Annuler";
-    cancelButton.style.padding = "12px 18px";
+    cancelButton.textContent = "Fermer";
+    cancelButton.style.width = "100%";
+    cancelButton.style.padding = "12px";
     cancelButton.style.backgroundColor = "#ff4d4d";
     cancelButton.style.color = "#ffffff";
     cancelButton.style.border = "none";
     cancelButton.style.borderRadius = "8px";
     cancelButton.style.cursor = "pointer";
-    cancelButton.style.width = "100%";
+
+    const contentContainer = window.document.createElement("div");
+    contentContainer.style.marginTop = "15px";
+
+    infoButton.addEventListener("click", () => {
+      showUserStats(pseudo, contentContainer);
+    });
+
+    fusionButton.addEventListener("click", () => {
+      showFusionMenu(pseudo, count, contentContainer);
+    });
 
     cancelButton.addEventListener("click", () => {
       overlay.remove();
     });
 
-    menu.appendChild(fusionSelect);
-    menu.appendChild(fusionButton);
+    actionButtons.appendChild(infoButton);
+    actionButtons.appendChild(fusionButton);
+    menu.appendChild(actionButtons);
+    menu.appendChild(contentContainer);
     menu.appendChild(cancelButton);
 
     overlay.appendChild(menu);
@@ -884,7 +932,120 @@
     });
 
     window.addEventListener("keydown", (e) => e.key === "Escape" && overlay.remove());
+  }
 
+  function showUserStats(pseudo, container) {
+    container.innerHTML = "";
+
+    const stats = userStats.get(pseudo) || {
+      totalChars: 0,
+      messageCount: 0,
+      averageChars: 0,
+      messageDates: new Map()
+    };
+
+    let mostActiveDay = 'Aucun';
+    let maxMessages = 0;
+    for (const [date, count] of stats.messageDates) {
+      if (count > maxMessages) {
+        maxMessages = count;
+        mostActiveDay = date;
+      }
+    }
+
+    const statsHTML = `
+    <div class="stats-container">
+      <div class="stats-row">
+        <span class="stats-label">Messages postés :</span>
+        <span class="stats-value">${stats.messageCount}</span>
+      </div>
+      <div class="stats-row">
+        <span class="stats-label">Moyenne caractères/message :</span>
+        <span class="stats-value">${stats.averageChars}</span>
+      </div>
+      <div class="stats-row">
+        <span class="stats-label">Jour le plus actif :</span>
+        <span class="stats-value">${mostActiveDay} (${maxMessages} messages)</span>
+      </div>
+    </div>
+  `;
+
+    container.innerHTML = statsHTML;
+  }
+
+  function showFusionMenu(pseudo, count, container) {
+    container.innerHTML = "";
+
+    const description = window.document.createElement("p");
+    description.textContent = `Sélectionnez un ou plusieurs pseudos à fusionner avec "${pseudo}".`;
+    description.style.fontSize = "14px";
+    description.style.marginBottom = "15px";
+    description.style.textAlign = "center";
+    description.style.color = "#b9bbbe";
+    description.style.lineHeight = "1.4";
+    container.appendChild(description);
+
+    const fusionSelect = window.document.createElement("select");
+    fusionSelect.multiple = true;
+    fusionSelect.style.width = "100%";
+    fusionSelect.style.height = "200px";
+    fusionSelect.style.marginBottom = "15px";
+    fusionSelect.style.padding = "10px";
+    fusionSelect.style.border = "1px solid #40444b";
+    fusionSelect.style.borderRadius = "8px";
+    fusionSelect.style.backgroundColor = "#1e1f22";
+    fusionSelect.style.color = "#ffffff";
+    fusionSelect.style.fontSize = "14px";
+    fusionSelect.style.cursor = "pointer";
+    fusionSelect.style.outline = "none";
+    fusionSelect.style.transition = "border-color 0.3s ease";
+
+    const updatePseudosList = () => {
+      fusionSelect.innerHTML = '';
+
+      const availablePseudos = [...messagesCount.entries()]
+        .filter(([p, _]) => p !== pseudo)
+        .sort((a, b) => a[0].localeCompare(b[0]));
+
+      for (const [p, c] of availablePseudos) {
+        const option = window.document.createElement("option");
+        option.value = p;
+        option.textContent = `${p} (${c} ${c > 1 ? "messages" : "message"})`;
+        fusionSelect.appendChild(option);
+      }
+    };
+
+    updatePseudosList();
+
+    const confirmButton = window.document.createElement("button");
+    confirmButton.textContent = "Confirmer la fusion";
+    confirmButton.style.width = "100%";
+    confirmButton.style.padding = "12px";
+    confirmButton.style.backgroundColor = "#d39100";
+    confirmButton.style.color = "#ffffff";
+    confirmButton.style.border = "none";
+    confirmButton.style.borderRadius = "8px";
+    confirmButton.style.cursor = "pointer";
+    confirmButton.style.marginTop = "10px";
+    confirmButton.style.fontSize = "16px";
+    confirmButton.style.fontWeight = "600";
+
+    confirmButton.addEventListener("click", () => {
+      const selectedOptions = [...fusionSelect.selectedOptions];
+      if (selectedOptions.length > 0) {
+        selectedOptions.forEach(option => {
+          const sourcePseudo = option.value;
+          fusionPseudos(pseudo, sourcePseudo, messagesCount.get(sourcePseudo));
+        });
+
+        updateResults();
+        updatePseudosList();
+        showNotification(`${selectedOptions.length} pseudo(s) fusionné(s) avec ${pseudo}`, "success");
+      }
+    });
+
+    container.appendChild(fusionSelect);
+    container.appendChild(confirmButton);
   }
 
   function updateStatus(text, className = "green", isPaused = false) {
@@ -964,5 +1125,4 @@
       console.error('Analysis-tool-for-jeuxvideo.com-threads → Erreur lors de la vérification de la version du script :', error);
     }
   }
-
- })();
+})();

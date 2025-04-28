@@ -1,5 +1,5 @@
 (async function main() {
-  const scriptVersion = "v1.4.1";
+  const scriptVersion = "v1.4.2";
   checkScriptVersion();
   let currentPage = 1;
   let messagesCount = new Map();
@@ -223,6 +223,16 @@
           color: #ffffff; 
           line-height: 1.5;
         }
+        .version {
+          position: fixed;
+          bottom: 10px;
+          left: 10px;
+          color: #b9bbbe;
+          font-size: 12px;
+          font-family: Arial, sans-serif;
+          opacity: 0.7;
+          z-index: 1000;
+        }
         .notification-container {
           position: fixed;
           bottom: 20px;
@@ -321,6 +331,17 @@
           width: 0%; 
           border-radius: 10px 0 0 10px;
           transition: width 0.5s ease-in-out;
+        }
+        .progress-percentage {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: bold;
+          text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+          z-index: 1;
         }
         .summary { 
           margin-bottom: 20px; 
@@ -455,6 +476,7 @@
         </div>
         <div class="progress-bar">
           <div class="fill"></div>
+          <span class="progress-percentage">0%</span>
         </div>
         <div class="summary" id="summary"></div>
         <div id="status" class="status green">
@@ -473,6 +495,7 @@
           </table>
         </div>
         <div class="notification-container"></div>
+        <div class="version">${scriptVersion}</div>
       </div>
     </body>
     </html>`;
@@ -503,7 +526,8 @@
 
   pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true));
   resumeAnalysis = () => !isPendingRequest && isPaused && (isPaused = false, updateStatus("Analyse en cours..."), handlePage());
-  updateProgress = () => progressBar.style.width = `${Math.min(currentPage / maxPages * 100, 100)}%`;
+  updateProgress = () => progressBar.style.width = window.document.querySelector(".progress-percentage").textContent = `${Math.min((currentPage / maxPages) * 100, 100).toFixed(0)}%`;
+
 
   copyResults = () => {
     try {
@@ -828,101 +852,119 @@
 
   function showUserActionMenu(pseudo, count, row) {
     const overlay = window.document.createElement("div");
-    overlay.style.position = "fixed";
-    overlay.style.top = "0";
-    overlay.style.left = "0";
-    overlay.style.width = "100%";
-    overlay.style.height = "100%";
-    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-    overlay.style.zIndex = "99";
-    overlay.style.display = "flex";
-    overlay.style.alignItems = "center";
-    overlay.style.justifyContent = "center";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      width: "100%",
+      height: "100%",
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      zIndex: "99",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    });
 
     const menu = window.document.createElement("div");
-    menu.style.backgroundColor = "#2c2f33";
-    menu.style.border = "1px solid #40444b";
-    menu.style.borderRadius = "12px";
-    menu.style.padding = "25px";
-    menu.style.width = "450px";
-    menu.style.maxWidth = "90%";
-    menu.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.5)";
-    menu.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-    menu.style.color = "#ffffff";
-    menu.style.position = "relative";
-    menu.style.transform = "scale(0.9)";
-    menu.style.opacity = "0";
-    menu.style.transition = "transform 0.3s ease, opacity 0.3s ease";
+    Object.assign(menu.style, {
+      backgroundColor: "#2c2f33",
+      border: "1px solid #40444b",
+      borderRadius: "12px",
+      padding: "25px",
+      width: "450px",
+      maxWidth: "90%",
+      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
+      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+      color: "#ffffff",
+      position: "relative",
+      transform: "scale(0.9)",
+      opacity: "0",
+      transition: "transform 0.3s ease, opacity 0.3s ease",
+    });
 
     const titleContainer = window.document.createElement("div");
-    titleContainer.style.display = "flex";
-    titleContainer.style.alignItems = "center";
-    titleContainer.style.justifyContent = "center";
-    titleContainer.style.marginBottom = "15px";
+    Object.assign(titleContainer.style, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: "15px",
+    });
 
     const title = window.document.createElement("h3");
     title.textContent = `${pseudo}`;
-    title.style.fontSize = "18px";
-    title.style.textAlign = "center";
-    title.style.color = "#6064f4";
-    title.style.fontWeight = "600";
-    title.style.margin = "0 10px 0 0";
+    Object.assign(title.style, {
+      fontSize: "18px",
+      textAlign: "center",
+      color: "#6064f4",
+      fontWeight: "600",
+      margin: "0 10px 0 0",
+    });
     titleContainer.appendChild(title);
 
     const chartButton = window.document.createElement("button");
     chartButton.textContent = "Graphique";
-    chartButton.style.padding = "4px 8px";
-    chartButton.style.fontSize = "12px";
-    chartButton.style.background = "#6064f4";
-    chartButton.style.color = "#ffffff";
-    chartButton.style.border = "none";
-    chartButton.style.borderRadius = "3px";
-    chartButton.style.cursor = "pointer";
-    chartButton.style.lineHeight = "1.2";
-    chartButton.style.outline = "none";
+    Object.assign(chartButton.style, {
+      padding: "4px 8px",
+      fontSize: "12px",
+      background: "#6064f4",
+      color: "#ffffff",
+      border: "none",
+      borderRadius: "3px",
+      cursor: "pointer",
+      lineHeight: "1.2",
+      outline: "none",
+    });
     chartButton.addEventListener("click", () => showActivityChart(pseudo));
     titleContainer.appendChild(chartButton);
 
     menu.appendChild(titleContainer);
 
     const actionButtons = window.document.createElement("div");
-    actionButtons.style.display = "flex";
-    actionButtons.style.gap = "10px";
-    actionButtons.style.marginBottom = "20px";
+    Object.assign(actionButtons.style, {
+      display: "flex",
+      gap: "10px",
+      marginBottom: "20px",
+    });
 
     const infoButton = window.document.createElement("button");
     infoButton.textContent = "Plus d'infos";
-    infoButton.style.flex = "1";
-    infoButton.style.padding = "12px";
-    infoButton.style.backgroundColor = "#6064f4";
-    infoButton.style.color = "#ffffff";
-    infoButton.style.border = "none";
-    infoButton.style.borderRadius = "8px";
-    infoButton.style.cursor = "pointer";
-    infoButton.style.fontSize = "16px";
-    infoButton.style.fontWeight = "600";
+    Object.assign(infoButton.style, {
+      flex: "1",
+      padding: "12px",
+      backgroundColor: "#6064f4",
+      color: "#ffffff",
+      border: "none",
+      borderRadius: "8px",
+      cursor: "pointer",
+      fontSize: "16px",
+      fontWeight: "600",
+    });
 
     const fusionButton = window.document.createElement("button");
     fusionButton.textContent = "Fusionner";
-    fusionButton.style.flex = "1";
-    fusionButton.style.padding = "12px";
-    fusionButton.style.backgroundColor = "#d39100";
-    fusionButton.style.color = "#ffffff";
-    fusionButton.style.border = "none";
-    fusionButton.style.borderRadius = "8px";
-    fusionButton.style.cursor = "pointer";
-    fusionButton.style.fontSize = "16px";
-    fusionButton.style.fontWeight = "600";
+    Object.assign(fusionButton.style, {
+      flex: "1",
+      padding: "12px",
+      backgroundColor: "#d39100",
+      color: "#ffffff",
+      border: "none",
+      borderRadius: "8px",
+      cursor: "pointer",
+      fontSize: "16px",
+      fontWeight: "600",
+    });
 
     const cancelButton = window.document.createElement("button");
     cancelButton.textContent = "Fermer";
-    cancelButton.style.width = "100%";
-    cancelButton.style.padding = "12px";
-    cancelButton.style.backgroundColor = "#ff4d4d";
-    cancelButton.style.color = "#ffffff";
-    cancelButton.style.border = "none";
-    cancelButton.style.borderRadius = "8px";
-    cancelButton.style.cursor = "pointer";
+    Object.assign(cancelButton.style, {
+      width: "100%",
+      padding: "12px",
+      backgroundColor: "#ff4d4d",
+      color: "#ffffff",
+      border: "none",
+      borderRadius: "8px",
+      cursor: "pointer",
+    });
 
     const contentContainer = window.document.createElement("div");
     contentContainer.style.marginTop = "15px";
@@ -1060,57 +1102,67 @@
     const messageCounts = dates.map(date => stats.messageDates.get(date) || 0);
 
     const overlay = document.createElement("div");
-    overlay.style.position = "fixed";
-    overlay.style.top = "0";
-    overlay.style.left = "0";
-    overlay.style.width = "100%";
-    overlay.style.height = "100%";
-    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-    overlay.style.zIndex = "100";
-    overlay.style.display = "flex";
-    overlay.style.alignItems = "center";
-    overlay.style.justifyContent = "center";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      width: "100%",
+      height: "100%",
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      zIndex: "100",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    });
 
     const chartContainer = document.createElement("div");
-    chartContainer.style.backgroundColor = "#2c2f33";
-    chartContainer.style.border = "1px solid #40444b";
-    chartContainer.style.borderRadius = "12px";
-    chartContainer.style.padding = "25px";
-    chartContainer.style.width = "800px";
-    chartContainer.style.maxWidth = "95%";
-    chartContainer.style.maxHeight = "90%";
-    chartContainer.style.overflowY = "auto";
-    chartContainer.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.5)";
-    chartContainer.style.position = "relative";
-    chartContainer.style.transform = "scale(0.9)";
-    chartContainer.style.opacity = "0";
-    chartContainer.style.transition = "transform 0.3s ease, opacity 0.3s ease";
+    Object.assign(chartContainer.style, {
+      backgroundColor: "#2c2f33",
+      border: "1px solid #40444b",
+      borderRadius: "12px",
+      padding: "25px",
+      width: "800px",
+      maxWidth: "95%",
+      maxHeight: "90%",
+      overflowY: "auto",
+      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
+      position: "relative",
+      transform: "scale(0.9)",
+      opacity: "0",
+      transition: "transform 0.3s ease, opacity 0.3s ease",
+    });
 
     const title = document.createElement("h3");
     title.textContent = `Activité quotidienne de ${pseudo}`;
-    title.style.fontSize = "20px";
-    title.style.marginBottom = "20px";
-    title.style.textAlign = "center";
-    title.style.color = "#6064f4";
-    title.style.fontWeight = "600";
+    Object.assign(title.style, {
+      fontSize: "20px",
+      marginBottom: "20px",
+      textAlign: "center",
+      color: "#6064f4",
+      fontWeight: "600",
+    });
     chartContainer.appendChild(title);
 
     const canvas = document.createElement("canvas");
-    canvas.style.maxHeight = "500px";
-    canvas.style.width = "100%";
+    Object.assign(canvas.style, {
+      maxHeight: "500px",
+      width: "100%",
+    });
     chartContainer.appendChild(canvas);
 
     const closeButton = document.createElement("button");
     closeButton.textContent = "Fermer";
-    closeButton.style.width = "100%";
-    closeButton.style.padding = "12px";
-    closeButton.style.backgroundColor = "#ff4d4d";
-    closeButton.style.color = "#ffffff";
-    closeButton.style.border = "none";
-    closeButton.style.borderRadius = "8px";
-    closeButton.style.cursor = "pointer";
-    closeButton.style.marginTop = "20px";
-    closeButton.style.fontSize = "16px";
+    Object.assign(closeButton.style, {
+      width: "100%",
+      padding: "12px",
+      backgroundColor: "#ff4d4d",
+      color: "#ffffff",
+      border: "none",
+      borderRadius: "8px",
+      cursor: "pointer",
+      marginTop: "20px",
+      fontSize: "16px",
+    });
     closeButton.addEventListener("click", () => overlay.remove());
     chartContainer.appendChild(closeButton);
 
@@ -1219,39 +1271,102 @@
     window.addEventListener("keydown", (e) => e.key === "Escape" && overlay.remove());
   }
 
-
   function showFusionMenu(pseudo, count, container) {
     container.innerHTML = "";
 
     const description = window.document.createElement("p");
     description.textContent = `Sélectionnez un ou plusieurs pseudos à fusionner avec "${pseudo}".`;
-    description.style.fontSize = "14px";
-    description.style.marginBottom = "15px";
-    description.style.textAlign = "center";
-    description.style.color = "#b9bbbe";
-    description.style.lineHeight = "1.4";
+    Object.assign(description.style, {
+      fontSize: "14px",
+      marginBottom: "15px",
+      textAlign: "center",
+      color: "#b9bbbe",
+      lineHeight: "1.4",
+    });
     container.appendChild(description);
+
+    const searchContainer = window.document.createElement("div");
+    Object.assign(searchContainer.style, {
+      position: "relative",
+      width: "100%",
+      marginBottom: "10px",
+    });
+
+    const searchInput = window.document.createElement("input");
+    searchInput.type = "text";
+    searchInput.placeholder = "Rechercher un pseudo...";
+    Object.assign(searchInput.style, {
+      width: "100%",
+      padding: "10px 35px 10px 10px",
+      border: "1px solid #40444b",
+      borderRadius: "8px",
+      backgroundColor: "#1e1f22",
+      color: "#ffffff",
+      fontSize: "14px",
+      outline: "none",
+      transition: "border-color 0.3s ease",
+      boxSizing: "border-box",
+    });
+
+    const clearButton = window.document.createElement("span");
+    clearButton.textContent = "×";
+    Object.assign(clearButton.style, {
+      position: "absolute",
+      right: "10px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      cursor: "pointer",
+      color: "#b9bbbe",
+      fontSize: "20px",
+      display: "none",
+      transition: "color 0.2s ease",
+    });
+
+    clearButton.addEventListener("click", () => {
+      searchInput.value = "";
+      updatePseudosList();
+      clearButton.style.display = "none";
+    });
+
+    clearButton.addEventListener("mouseenter", () => {
+      clearButton.style.color = "#ffffff";
+    });
+
+    clearButton.addEventListener("mouseleave", () => {
+      clearButton.style.color = "#b9bbbe";
+    });
+
+    searchInput.addEventListener("input", () => {
+      updatePseudosList(searchInput.value.trim());
+      clearButton.style.display = searchInput.value.trim() ? "block" : "none";
+    });
+
+    searchContainer.appendChild(searchInput);
+    searchContainer.appendChild(clearButton);
+    container.appendChild(searchContainer);
 
     const fusionSelect = window.document.createElement("select");
     fusionSelect.multiple = true;
-    fusionSelect.style.width = "100%";
-    fusionSelect.style.height = "200px";
-    fusionSelect.style.marginBottom = "15px";
-    fusionSelect.style.padding = "10px";
-    fusionSelect.style.border = "1px solid #40444b";
-    fusionSelect.style.borderRadius = "8px";
-    fusionSelect.style.backgroundColor = "#1e1f22";
-    fusionSelect.style.color = "#ffffff";
-    fusionSelect.style.fontSize = "14px";
-    fusionSelect.style.cursor = "pointer";
-    fusionSelect.style.outline = "none";
-    fusionSelect.style.transition = "border-color 0.3s ease";
+    Object.assign(fusionSelect.style, {
+      width: "100%",
+      height: "200px",
+      marginBottom: "15px",
+      padding: "10px",
+      border: "1px solid #40444b",
+      borderRadius: "8px",
+      backgroundColor: "#1e1f22",
+      color: "#ffffff",
+      fontSize: "14px",
+      cursor: "pointer",
+      outline: "none",
+      transition: "border-color 0.3s ease",
+    });
 
-    const updatePseudosList = () => {
+    const updatePseudosList = (filter = "") => {
       fusionSelect.innerHTML = '';
 
       const availablePseudos = [...messagesCount.entries()]
-        .filter(([p, _]) => p !== pseudo)
+        .filter(([p, _]) => p !== pseudo && p.toLowerCase().includes(filter.toLowerCase()))
         .sort((a, b) => a[0].localeCompare(b[0]));
 
       for (const [p, c] of availablePseudos) {
@@ -1266,16 +1381,18 @@
 
     const confirmButton = window.document.createElement("button");
     confirmButton.textContent = "Confirmer la fusion";
-    confirmButton.style.width = "100%";
-    confirmButton.style.padding = "12px";
-    confirmButton.style.backgroundColor = "#d39100";
-    confirmButton.style.color = "#ffffff";
-    confirmButton.style.border = "none";
-    confirmButton.style.borderRadius = "8px";
-    confirmButton.style.cursor = "pointer";
-    confirmButton.style.marginTop = "10px";
-    confirmButton.style.fontSize = "16px";
-    confirmButton.style.fontWeight = "600";
+    Object.assign(confirmButton.style, {
+      width: "100%",
+      padding: "12px",
+      backgroundColor: "#d39100",
+      color: "#ffffff",
+      border: "none",
+      borderRadius: "8px",
+      cursor: "pointer",
+      marginTop: "10px",
+      fontSize: "16px",
+      fontWeight: "600",
+    });
 
     confirmButton.addEventListener("click", () => {
       const selectedOptions = [...fusionSelect.selectedOptions];
@@ -1286,6 +1403,8 @@
         });
 
         updateResults();
+        searchInput.value = "";
+        clearButton.style.display = "none";
         updatePseudosList();
         showNotification(`${selectedOptions.length} pseudo(s) fusionné(s) avec ${pseudo}`, "success");
       }

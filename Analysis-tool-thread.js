@@ -1,25 +1,25 @@
 (async function main() {
-  const scriptVersion = "v1.4.2";
-  checkScriptVersion();
-  let currentPage = 1;
-  let messagesCount = new Map();
-  let totalMessages = 0;
-  let totalPages = 0;
-  let isPaused = false;
-  let isPendingRequest = false;
-  const analyzedPages = new Set();
-  const previousPositions = new Map();
-  const userStats = new Map();
-  const pagination = document.querySelector(".bloc-liste-num-page");
-  const maxPages = pagination ? (pagination.querySelectorAll("a.xXx.lien-jv").length > 0 ? parseInt(pagination.querySelectorAll("a.xXx.lien-jv")[Math.max(0, pagination.querySelectorAll("a.xXx.lien-jv").length - (pagination.querySelectorAll("a.xXx.lien-jv").length > 11 ? 2 : 1))].textContent, 10) || 1 : 1) : 1;
-  const startTime = Date.now();
-  const topicTitleElement = document.querySelector("#bloc-title-forum");
-  const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
+	const scriptVersion = "v1.4.3";
+	checkScriptVersion();
+	let currentPage = 1;
+	let messagesCount = new Map();
+	let totalMessages = 0;
+	let totalPages = 0;
+	let isPaused = false;
+	let isPendingRequest = false;
+	const analyzedPages = new Set();
+	const previousPositions = new Map();
+	const userStats = new Map();
+	const pagination = document.querySelector(".bloc-liste-num-page");
+	const maxPages = pagination ? (pagination.querySelectorAll("a.xXx.lien-jv").length > 0 ? parseInt(pagination.querySelectorAll("a.xXx.lien-jv")[Math.max(0, pagination.querySelectorAll("a.xXx.lien-jv").length - (pagination.querySelectorAll("a.xXx.lien-jv").length > 11 ? 2 : 1))].textContent, 10) || 1 : 1) : 1;
+	const startTime = Date.now();
+	const topicTitleElement = document.querySelector("#bloc-title-forum");
+	const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
 
-  function userPageInput() {
-    return new Promise((resolve) => {
-      const overlay = document.createElement('div');
-      overlay.style.cssText = `
+	function userPageInput() {
+		return new Promise((resolve) => {
+			const overlay = document.createElement('div');
+			overlay.style.cssText = `
         position: fixed;
         top: 0;
         left: 0;
@@ -33,8 +33,8 @@
         font-family: Arial, sans-serif;
       `;
 
-      const modal = document.createElement('div');
-      modal.style.cssText = `
+			const modal = document.createElement('div');
+			modal.style.cssText = `
         background: #2c2f33;
         border-radius: 12px;
         padding: 30px;
@@ -48,9 +48,9 @@
         transition: transform 0.3s ease, opacity 0.3s ease;
       `;
 
-      const closeButton = document.createElement('button');
-      closeButton.innerHTML = '&times;';
-      closeButton.style.cssText = `
+			const closeButton = document.createElement('button');
+			closeButton.innerHTML = '&times;';
+			closeButton.style.cssText = `
         position: absolute;
         top: 10px;
         right: 10px;
@@ -70,44 +70,44 @@
         border-radius: 50%;
       `;
 
-      closeButton.addEventListener('mouseenter', () => {
-        closeButton.style.color = '#ffffff';
-        closeButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
-      });
+			closeButton.addEventListener('mouseenter', () => {
+				closeButton.style.color = '#ffffff';
+				closeButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+			});
 
-      closeButton.addEventListener('mouseleave', () => {
-        closeButton.style.color = '#b9bbbe';
-        closeButton.style.backgroundColor = 'transparent';
-      });
+			closeButton.addEventListener('mouseleave', () => {
+				closeButton.style.color = '#b9bbbe';
+				closeButton.style.backgroundColor = 'transparent';
+			});
 
-      closeButton.addEventListener('click', () => {
-        overlay.remove();
-        return;
-      });
+			closeButton.addEventListener('click', () => {
+				overlay.remove();
+				return;
+			});
 
-      const title = document.createElement('h2');
-      title.textContent = 'Sélection de la page de départ';
-      title.style.cssText = `
+			const title = document.createElement('h2');
+			title.textContent = 'Sélection de la page de départ';
+			title.style.cssText = `
         color: #6064f4;
         margin-bottom: 20px;
         font-size: 20px;
       `;
 
-      const description = document.createElement('p');
-      const pageText = maxPages === 1 ? '1 page' : ` ${maxPages} pages`;
-      description.textContent = `Ce topic contient ${pageText}. À partir de quelle page souhaitez-vous commencer l'analyse ?`;
-      description.style.cssText = `
+			const description = document.createElement('p');
+			const pageText = maxPages === 1 ? '1 page' : ` ${maxPages} pages`;
+			description.textContent = `Ce topic contient ${pageText}. À partir de quelle page souhaitez-vous commencer l'analyse ?`;
+			description.style.cssText = `
         color: #b9bbbe;
         margin-bottom: 20px;
         line-height: 1.5;
       `;
 
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.min = 1;
-      input.max = maxPages;
-      input.value = 1;
-      input.style.cssText = `
+			const input = document.createElement('input');
+			input.type = 'number';
+			input.min = 1;
+			input.max = maxPages;
+			input.value = 1;
+			input.style.cssText = `
         width: 100%;
         padding: 12px;
         margin-bottom: 20px;
@@ -119,24 +119,24 @@
         text-align: center;
       `;
 
-      input.addEventListener('keydown', (event) => {
-        if (event.key === 'e' || event.key === 'E' || event.key === '+' || event.key === '-') {
-          event.preventDefault();
-        }
-      });
+			input.addEventListener('keydown', (event) => {
+				if (event.key === 'e' || event.key === 'E' || event.key === '+' || event.key === '-') {
+					event.preventDefault();
+				}
+			});
 
-      input.addEventListener('input', () => {
-        const value = parseInt(input.value, 10) || 1;
-        if (value > maxPages) {
-          input.value = maxPages;
-        } else if (value < 1) {
-          input.value = 1;
-        }
-      });
+			input.addEventListener('input', () => {
+				const value = parseInt(input.value, 10) || 1;
+				if (value > maxPages) {
+					input.value = maxPages;
+				} else if (value < 1) {
+					input.value = 1;
+				}
+			});
 
-      const startButton = document.createElement('button');
-      startButton.textContent = 'Commencer l\'analyse';
-      startButton.style.cssText = `
+			const startButton = document.createElement('button');
+			startButton.textContent = 'Commencer l\'analyse';
+			startButton.style.cssText = `
         width: 100%;
         padding: 12px;
         background: #6064f4;
@@ -148,68 +148,68 @@
         transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
       `;
 
-      startButton.addEventListener('mouseenter', () => {
-        startButton.style.background = '#4346ab';
-        startButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
-      });
+			startButton.addEventListener('mouseenter', () => {
+				startButton.style.background = '#4346ab';
+				startButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
+			});
 
-      startButton.addEventListener('mouseleave', () => {
-        startButton.style.background = '#6064f4';
-        startButton.style.boxShadow = 'none';
-      });
+			startButton.addEventListener('mouseleave', () => {
+				startButton.style.background = '#6064f4';
+				startButton.style.boxShadow = 'none';
+			});
 
-      startButton.addEventListener('mousedown', () => {
-        startButton.style.transform = 'scale(0.98)';
-        startButton.style.background = '#4346ab';
-        startButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-      });
+			startButton.addEventListener('mousedown', () => {
+				startButton.style.transform = 'scale(0.98)';
+				startButton.style.background = '#4346ab';
+				startButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+			});
 
-      startButton.addEventListener('mouseup', () => {
-        startButton.style.transform = 'scale(1)';
-        startButton.style.background = '#6064f4';
-        startButton.style.boxShadow = 'none';
-      });
+			startButton.addEventListener('mouseup', () => {
+				startButton.style.transform = 'scale(1)';
+				startButton.style.background = '#6064f4';
+				startButton.style.boxShadow = 'none';
+			});
 
-      startButton.addEventListener('click', () => {
-        const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
-        overlay.remove();
-        resolve(selectedPage);
-      });
+			startButton.addEventListener('click', () => {
+				const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
+				overlay.remove();
+				resolve(selectedPage);
+			});
 
-      modal.appendChild(closeButton);
-      modal.appendChild(title);
-      modal.appendChild(description);
-      modal.appendChild(input);
-      modal.appendChild(startButton);
-      overlay.appendChild(modal);
-      document.body.appendChild(overlay);
+			modal.appendChild(closeButton);
+			modal.appendChild(title);
+			modal.appendChild(description);
+			modal.appendChild(input);
+			modal.appendChild(startButton);
+			overlay.appendChild(modal);
+			document.body.appendChild(overlay);
 
-      requestAnimationFrame(() => {
-        modal.style.transform = 'scale(1)';
-        modal.style.opacity = '1';
-      });
+			requestAnimationFrame(() => {
+				modal.style.transform = 'scale(1)';
+				modal.style.opacity = '1';
+			});
 
-      input.focus();
+			input.focus();
 
-      window.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-          const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
-          overlay.remove();
-          resolve(selectedPage);
-        }
+			window.addEventListener('keydown', (event) => {
+				if (event.key === 'Enter') {
+					const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
+					overlay.remove();
+					resolve(selectedPage);
+				}
 
-        if (event.key === 'Escape') {
-          overlay.remove();
-          return;
-        }
-      });
-    });
-  }
+				if (event.key === 'Escape') {
+					overlay.remove();
+					return;
+				}
+			});
+		});
+	}
 
-  const userInput = await userPageInput();
-  currentPage = userInput;
+	const userInput = await userPageInput();
+	currentPage = userInput;
 
-  window.document.body.innerHTML = `
+	window.document.body.innerHTML = `
       <html>
       <head>
       <meta charset="UTF-8">
@@ -500,995 +500,1080 @@
     </body>
     </html>`;
 
-  const progressBar = window.document.querySelector(".progress-bar .fill");
-  const summaryElement = window.document.querySelector("#summary");
-  const resultsTable = window.document.querySelector("#results");
-  const statusElement = window.document.querySelector("#status");
-  const notificationContainer = window.document.querySelector(".notification-container");
-
-  function showNotification(message, type = 'info', duration = 3000) {
-    const notification = document.createElement('div');
-    notification.classList.add('notification', type);
-    notification.textContent = message;
-    notificationContainer.appendChild(notification);
-
-    requestAnimationFrame(() => {
-      notification.classList.add('show');
-    });
-
-    setTimeout(() => {
-      notification.classList.remove('show');
-      setTimeout(() => {
-        notificationContainer.removeChild(notification);
-      }, 300);
-    }, duration);
-  }
-
-  pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true));
-  resumeAnalysis = () => !isPendingRequest && isPaused && (isPaused = false, updateStatus("Analyse en cours..."), handlePage());
-  updateProgress = () => progressBar.style.width = window.document.querySelector(".progress-percentage").textContent = `${Math.min((currentPage / maxPages) * 100, 100).toFixed(0)}%`;
-
-
-  copyResults = () => {
-    try {
-      const rows = window.document.querySelectorAll("#results tr");
-      let resultsText = window.document.querySelector("#summary").textContent + "\n\n";
-      rows.forEach(row => {
-        const cells = row.querySelectorAll("td");
-        if (cells.length >= 3)
-          resultsText += `#${cells[0]?.textContent.split(' ')[0] || "?"} : ${cells[1]?.textContent || "?"} -> ${parseInt(cells[2]?.textContent) || 0} ${parseInt(cells[2]?.textContent) === 1 ? "message" : "messages"}\n`;
-      });
-      navigator.clipboard.writeText(resultsText.replace(/Pages restantes.*\n|Analyse terminée.\n/, ''))
-        .then(() => showNotification("Résultats copiés dans le presse-papiers !", "success"))
-        .catch(err => {
-          console.error("Échec de la copie des résultats :", err);
-          showNotification("Échec de la copie des résultats.", "error");
-        });
-
-    } catch (e) {
-      showNotification(`Erreur : ${e}`, "error");
-    }
-  };
-
-  handlePage();
-
-  async function handlePage(attempt = 1) {
-    if (isPaused) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      return handlePage(attempt);
-    }
-
-    if (statusElement.innerHTML !== `<span id="spinner"></span> Analyse en cours...`) {
-      updateStatus("Analyse en cours...", "green", false);
-    }
-
-    const pagesToProcess = [];
-    const originalCurrentPage = currentPage;
-    for (let i = 0; i < 25 && currentPage <= maxPages; i++) {
-      if (!analyzedPages.has(currentPage)) {
-        pagesToProcess.push(currentPage);
-      }
-      currentPage++;
-    }
-
-    if (pagesToProcess.length === 0) {
-      if (currentPage > maxPages) {
-        updateStatus("Analyse terminée.", "green bold", true);
-        showNotification("Analyse terminée ! Vous pouvez désormais interagir avec les pseudos en cliquant dessus.", "info", 10000);
-        updateSummary();
-      }
-      return;
-    }
-
-    try {
-      isPendingRequest = true;
-
-      const pagePromises = pagesToProcess.map(async (page) => {
-        const path = location.pathname.split("-").map((_, i) => i === 3 ? page : _).join("-");
-        try {
-          const response = await fetch(path);
-          if (response.status === 403) {
-            throw new Error(`Erreur 403 sur la page ${page}`);
-          }
-
-          if (response.redirected) {
-            return {
-              page,
-              redirected: true,
-              messagesOnPage: 0,
-              success: true
-            };
-          }
-
-          const body = await response.text();
-          const doc = document.implementation.createHTMLDocument();
-          doc.documentElement.innerHTML = body;
-          let messagesOnPage = 0;
-
-          doc.querySelectorAll(".bloc-pseudo-msg").forEach((messageElement) => {
-            const isBlacklisted = messageElement.closest(".conteneur-message-blacklist") !== null;
-            const pseudoElement = messageElement.querySelector(".text-user") || messageElement;
-            const pseudo = pseudoElement.innerText.trim();
-
-            if (!isBlacklisted && pseudo !== "Auteur blacklisté") {
-              messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
-              messagesOnPage++;
-
-              const messageContainer = messageElement.closest(".conteneur-message");
-              if (messageContainer) {
-                const dateElement = messageContainer.querySelector(".bloc-date-msg");
-                let messageDate = null;
-                if (dateElement) {
-                  const dateText = dateElement.textContent.trim();
-                  messageDate = dateText.split(' à ')[0];
-                }
-
-                if (!userStats.has(pseudo)) {
-                  userStats.set(pseudo, {
-                    totalChars: 0,
-                    messageCount: 0,
-                    averageChars: 0,
-                    messageDates: new Map()
-                  });
-                }
-                const stats = userStats.get(pseudo);
-                stats.messageCount++;
-                if (messageDate) {
-                  stats.messageDates.set(messageDate, (stats.messageDates.get(messageDate) || 0) + 1);
-                }
-
-                const messageContent = messageContainer.querySelector(".txt-msg");
-                if (messageContent) {
-                  const tempDiv = document.createElement('div');
-                  tempDiv.innerHTML = messageContent.innerHTML;
-                  tempDiv.querySelectorAll('a').forEach(a => a.remove());
-                  const textContent = tempDiv.textContent || '';
-                  const charCount = textContent.replace(/\s+/g, '').length;
-                  stats.totalChars += charCount;
-                  stats.averageChars = Math.round(stats.totalChars / stats.messageCount);
-                }
-              }
-            }
-          });
-
-          return {
-            page,
-            redirected: false,
-            messagesOnPage,
-            success: true
-          };
-        } catch (error) {
-          return {
-            page,
-            success: false,
-            error: error.message
-          };
-        }
-      });
-
-      const results = await Promise.allSettled(pagePromises);
-      let has403Error = false;
-      let pagesProcessed = 0;
-      let failedPages = [];
-
-      results.forEach((result, index) => {
-        const page = pagesToProcess[index];
-        if (result.status === "fulfilled" && result.value.success) {
-          const {
-            redirected,
-            messagesOnPage
-          } = result.value;
-          analyzedPages.add(page);
-          pagesProcessed++;
-          if (!redirected) {
-            totalMessages += messagesOnPage;
-            totalPages++;
-          }
-        } else if (result.status === "fulfilled" && !result.value.success) {
-          console.error(`Erreur sur la page ${page}: ${result.value.error}`);
-          if (result.value.error.includes("Erreur 403")) {
-            has403Error = true;
-          } else {
-            failedPages.push(page);
-          }
-        } else {
-          console.error(`Erreur sur la page ${page}: ${result.reason}`);
-          failedPages.push(page);
-        }
-      });
-
-      isPendingRequest = false;
-
-      if (has403Error) {
-        currentPage = originalCurrentPage;
-        isPaused = true;
-        updateStatus("Erreur 403 : Veuillez résoudre le CAPTCHA Cloudflare puis cliquer sur Reprendre.", "red", true);
-        showNotification("Erreur 403 détectée.", "error", 10000);
-        updateSummary();
-        return;
-      }
-
-      if (pagesProcessed > 0) {
-        updateProgress();
-        updateResults();
-        updateSummary();
-      }
-
-      const allRedirected = pagesProcessed === pagesToProcess.length && results.every((result) => result.status === "fulfilled" && result.value.success && result.value.redirected);
-
-      if (allRedirected && currentPage > maxPages) {
-        updateStatus("Analyse terminée.", "green bold", true);
-        showNotification("Analyse terminée ! Vous pouvez désormais interagir avec les pseudos en cliquant dessus.", "info", 10000);
-        updateSummary();
-        return;
-      }
-
-      if (failedPages.length > 0 && attempt < 50) {
-        currentPage = originalCurrentPage;
-        updateStatus(`Erreur réseau sur ${failedPages.length} page(s), tentative ${attempt}/50.`, "orange", false);
-        showNotification(`Erreur réseau sur ${failedPages.length} page(s), tentative ${attempt}/50.`, "warning", 5000);
-        const delay = Math.min(2 ** attempt * 100, 5000);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        const retryPages = failedPages.filter(page => !analyzedPages.has(page));
-        if (retryPages.length > 0) {
-          currentPage = Math.min(...retryPages);
-          return handlePage(attempt + 1);
-        }
-      } else if (failedPages.length > 0) {
-        currentPage = originalCurrentPage;
-        console.error("Échec malgré plusieurs tentatives pour les pages:", failedPages);
-        updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red bold", true);
-        showNotification(`Erreur fatale sur ${failedPages.length} page(s) après 50 tentatives.`, "error", 30000000);
-        updateSummary();
-        return;
-      }
-
-      if (!isPaused) {
-        handlePage(1);
-      } else {
-        updateStatus("Analyse mise en pause.", "orange", true);
-        updateSummary();
-      }
-
-    } catch (error) {
-      console.error("Erreur lors du traitement des pages:", error);
-      currentPage = originalCurrentPage;
-      isPendingRequest = false;
-
-      if (attempt < 50) {
-        updateStatus(`Erreur, tentative ${attempt}/50...`, "orange", false);
-        showNotification(`Erreur, tentative ${attempt}/50 après un délai...`, "warning", 5000);
-        const delay = Math.min(2 ** attempt * 100, 5000);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        handlePage(attempt + 1);
-      } else {
-        console.error("Échec malgré plusieurs tentatives.");
-        updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red bold", true);
-        showNotification(`Erreur fatale : ${error.message}`, "error", 30000000);
-        updateSummary();
-      }
-    }
-  }
-
-  function updateResults() {
-    resultsTable.innerHTML = "";
-    let sorted = [...messagesCount.entries()].sort((a, b) => b[1] - a[1]);
-
-    sorted.forEach(([pseudo, count], index) => {
-      let row = window.document.createElement("tr");
-      let position = index + 1;
-      let positionChange = "";
-      let previousPosition = previousPositions.get(pseudo);
-      let percentage = ((count / totalMessages) * 100).toFixed(1);
-
-      switch (true) {
-        case typeof previousPosition !== "undefined" && position < previousPosition:
-          positionChange = `<span class="green">⇧ ${previousPosition - position}</span>`;
-          break;
-
-        case typeof previousPosition !== "undefined" && position > previousPosition:
-          positionChange = `<span class="red">⇩ ${position - previousPosition}</span>`;
-          break;
-
-        default:
-          positionChange = "";
-      }
-
-      previousPositions.set(pseudo, position);
-      row.innerHTML = `<td>${position} ${positionChange}</td><td>${pseudo}</td><td>${count} <span style="color: #b9bbbe; font-size: 0.72em;">(${percentage}%)</span></td>`;
-
-      if (currentPage > maxPages) {
-        row.addEventListener("click", (e) => {
-          if (e.target.tagName !== 'TD') return;
-          showUserActionMenu(pseudo, count, row);
-        });
-
-        row.addEventListener("mouseover", () => {
-          const cells = row.querySelectorAll("td");
-          cells.forEach(cell => {
-            cell.style.backgroundColor = "rgba(0, 0, 0, 0.2)";
-          });
-          row.style.cursor = "pointer";
-        });
-
-        row.addEventListener("mouseout", () => {
-          const cells = row.querySelectorAll("td");
-          cells.forEach(cell => {
-            cell.style.backgroundColor = "";
-          });
-        });
-      }
-      resultsTable.appendChild(row);
-    });
-  }
-
-  function fusionPseudos(targetPseudo, sourcePseudo, count) {
-    messagesCount.set(targetPseudo, (messagesCount.get(targetPseudo) || 0) + count);
-    messagesCount.delete(sourcePseudo);
-    previousPositions.delete(sourcePseudo);
-
-    if (userStats.has(sourcePseudo)) {
-      const sourceStats = userStats.get(sourcePseudo);
-      if (!userStats.has(targetPseudo)) {
-        userStats.set(targetPseudo, {
-          totalChars: 0,
-          messageCount: 0,
-          averageChars: 0,
-          messageDates: new Map()
-        });
-      }
-      const targetStats = userStats.get(targetPseudo);
-      targetStats.totalChars += sourceStats.totalChars;
-      targetStats.messageCount += sourceStats.messageCount;
-      targetStats.averageChars = Math.round(targetStats.totalChars / targetStats.messageCount);
-
-      for (const [date, count] of sourceStats.messageDates) {
-        targetStats.messageDates.set(date, (targetStats.messageDates.get(date) || 0) + count);
-      }
-
-      userStats.delete(sourcePseudo);
-    }
-  }
-
-  function showUserActionMenu(pseudo, count, row) {
-    const overlay = window.document.createElement("div");
-    Object.assign(overlay.style, {
-      position: "fixed",
-      top: "0",
-      left: "0",
-      width: "100%",
-      height: "100%",
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
-      zIndex: "99",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    });
-
-    const menu = window.document.createElement("div");
-    Object.assign(menu.style, {
-      backgroundColor: "#2c2f33",
-      border: "1px solid #40444b",
-      borderRadius: "12px",
-      padding: "25px",
-      width: "450px",
-      maxWidth: "90%",
-      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
-      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-      color: "#ffffff",
-      position: "relative",
-      transform: "scale(0.9)",
-      opacity: "0",
-      transition: "transform 0.3s ease, opacity 0.3s ease",
-    });
-
-    const titleContainer = window.document.createElement("div");
-    Object.assign(titleContainer.style, {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: "15px",
-    });
-
-    const title = window.document.createElement("h3");
-    title.textContent = `${pseudo}`;
-    Object.assign(title.style, {
-      fontSize: "18px",
-      textAlign: "center",
-      color: "#6064f4",
-      fontWeight: "600",
-      margin: "0 10px 0 0",
-    });
-    titleContainer.appendChild(title);
-
-    const chartButton = window.document.createElement("button");
-    chartButton.textContent = "Graphique";
-    Object.assign(chartButton.style, {
-      padding: "4px 8px",
-      fontSize: "12px",
-      background: "#6064f4",
-      color: "#ffffff",
-      border: "none",
-      borderRadius: "3px",
-      cursor: "pointer",
-      lineHeight: "1.2",
-      outline: "none",
-    });
-    chartButton.addEventListener("click", () => showActivityChart(pseudo));
-    titleContainer.appendChild(chartButton);
-
-    menu.appendChild(titleContainer);
-
-    const actionButtons = window.document.createElement("div");
-    Object.assign(actionButtons.style, {
-      display: "flex",
-      gap: "10px",
-      marginBottom: "20px",
-    });
-
-    const infoButton = window.document.createElement("button");
-    infoButton.textContent = "Plus d'infos";
-    Object.assign(infoButton.style, {
-      flex: "1",
-      padding: "12px",
-      backgroundColor: "#6064f4",
-      color: "#ffffff",
-      border: "none",
-      borderRadius: "8px",
-      cursor: "pointer",
-      fontSize: "16px",
-      fontWeight: "600",
-    });
-
-    const fusionButton = window.document.createElement("button");
-    fusionButton.textContent = "Fusionner";
-    Object.assign(fusionButton.style, {
-      flex: "1",
-      padding: "12px",
-      backgroundColor: "#d39100",
-      color: "#ffffff",
-      border: "none",
-      borderRadius: "8px",
-      cursor: "pointer",
-      fontSize: "16px",
-      fontWeight: "600",
-    });
-
-    const cancelButton = window.document.createElement("button");
-    cancelButton.textContent = "Fermer";
-    Object.assign(cancelButton.style, {
-      width: "100%",
-      padding: "12px",
-      backgroundColor: "#ff4d4d",
-      color: "#ffffff",
-      border: "none",
-      borderRadius: "8px",
-      cursor: "pointer",
-    });
-
-    const contentContainer = window.document.createElement("div");
-    contentContainer.style.marginTop = "15px";
-
-    infoButton.addEventListener("click", () => {
-      showUserStats(pseudo, contentContainer);
-    });
-
-    fusionButton.addEventListener("click", () => {
-      showFusionMenu(pseudo, count, contentContainer);
-    });
-
-    cancelButton.addEventListener("click", () => {
-      overlay.remove();
-    });
-
-    actionButtons.appendChild(infoButton);
-    actionButtons.appendChild(fusionButton);
-    menu.appendChild(actionButtons);
-    menu.appendChild(contentContainer);
-    menu.appendChild(cancelButton);
-
-    overlay.appendChild(menu);
-    window.document.body.appendChild(overlay);
-
-    requestAnimationFrame(() => {
-      menu.style.transform = "scale(1)";
-      menu.style.opacity = "1";
-    });
-
-    window.addEventListener("keydown", (e) => e.key === "Escape" && overlay.remove());
-  }
-
-  function showUserStats(pseudo, container) {
-    container.innerHTML = "";
-
-    const stats = userStats.get(pseudo) || {
-      totalChars: 0,
-      messageCount: 0,
-      averageChars: 0,
-      messageDates: new Map()
-    };
-
-    let mostActiveDay = 'Aucun';
-    let maxMessages = 0;
-    for (const [date, count] of stats.messageDates) {
-      if (count > maxMessages) {
-        maxMessages = count;
-        mostActiveDay = date;
-      }
-    }
-
-    const activeDays = stats.messageDates.size;
-    const messagePerActiveDay = activeDays > 0 ? Math.round(stats.messageCount / activeDays) : 0;
-
-    const statsHTML = `
-    <div class="stats-container">
-      <div class="stats-row">
-        <span class="stats-label">Messages postés:</span>
-        <span class="stats-value">${stats.messageCount}</span>
-      </div>
-      <div class="stats-row">
-        <span class="stats-label">Moy. caractères/message:</span>
-        <span class="stats-value">${stats.averageChars}</span>
-      </div>
-      <div class="stats-row">
-        <span class="stats-label">Moy. de messages par jour:</span>
-        <span class="stats-value">${messagePerActiveDay}</span>
-      </div>
-      <div class="stats-row">
-        <span class="stats-label">Jour le plus actif:</span>
-        <span class="stats-value">${mostActiveDay} (${maxMessages} messages)</span>
-      </div>
-    </div>
-  `;
-
-    container.innerHTML = statsHTML;
-  }
-
-  async function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = src;
-      script.async = true;
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
-  }
-
-  async function showActivityChart(pseudo) {
-    const stats = userStats.get(pseudo) || {
-      messageDates: new Map()
-    };
-
-    const dates = [...stats.messageDates.keys()].sort((a, b) => {
-      const months = {
-        'janvier': 0,
-        'février': 1,
-        'mars': 2,
-        'avril': 3,
-        'mai': 4,
-        'juin': 5,
-        'juillet': 6,
-        'août': 7,
-        'septembre': 8,
-        'octobre': 9,
-        'novembre': 10,
-        'décembre': 11
-      };
-
-      const partsA = a.trim().split(/\s+/);
-      const dayA = parseInt(partsA[0], 10);
-      const monthA = months[partsA[1]?.toLowerCase()];
-      const yearA = parseInt(partsA[2], 10);
-
-      const partsB = b.trim().split(/\s+/);
-      const dayB = parseInt(partsB[0], 10);
-      const monthB = months[partsB[1]?.toLowerCase()];
-      const yearB = parseInt(partsB[2], 10);
-
-      if (isNaN(dayA) || monthA === undefined || isNaN(yearA)) {
-        return -1;
-      }
-      if (isNaN(dayB) || monthB === undefined || isNaN(yearB)) {
-        return 1;
-      }
-
-      const dateA = new Date(yearA, monthA, dayA);
-      const dateB = new Date(yearB, monthB, dayB);
-
-      return dateA - dateB;
-    });
-
-    const messageCounts = dates.map(date => stats.messageDates.get(date) || 0);
-
-    const overlay = document.createElement("div");
-    Object.assign(overlay.style, {
-      position: "fixed",
-      top: "0",
-      left: "0",
-      width: "100%",
-      height: "100%",
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
-      zIndex: "100",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    });
-
-    const chartContainer = document.createElement("div");
-    Object.assign(chartContainer.style, {
-      backgroundColor: "#2c2f33",
-      border: "1px solid #40444b",
-      borderRadius: "12px",
-      padding: "25px",
-      width: "800px",
-      maxWidth: "95%",
-      maxHeight: "90%",
-      overflowY: "auto",
-      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
-      position: "relative",
-      transform: "scale(0.9)",
-      opacity: "0",
-      transition: "transform 0.3s ease, opacity 0.3s ease",
-    });
-
-    const title = document.createElement("h3");
-    title.textContent = `Activité quotidienne de ${pseudo}`;
-    Object.assign(title.style, {
-      fontSize: "20px",
-      marginBottom: "20px",
-      textAlign: "center",
-      color: "#6064f4",
-      fontWeight: "600",
-    });
-    chartContainer.appendChild(title);
-
-    const canvas = document.createElement("canvas");
-    Object.assign(canvas.style, {
-      maxHeight: "500px",
-      width: "100%",
-    });
-    chartContainer.appendChild(canvas);
-
-    const closeButton = document.createElement("button");
-    closeButton.textContent = "Fermer";
-    Object.assign(closeButton.style, {
-      width: "100%",
-      padding: "12px",
-      backgroundColor: "#ff4d4d",
-      color: "#ffffff",
-      border: "none",
-      borderRadius: "8px",
-      cursor: "pointer",
-      marginTop: "20px",
-      fontSize: "16px",
-    });
-    closeButton.addEventListener("click", () => overlay.remove());
-    chartContainer.appendChild(closeButton);
-
-    overlay.appendChild(chartContainer);
-    document.body.appendChild(overlay);
-
-    requestAnimationFrame(() => {
-      chartContainer.style.transform = "scale(1)";
-      chartContainer.style.opacity = "1";
-    });
-
-    try {
-      if (typeof Chart === 'undefined') {
-        await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
-      }
-
-      new Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels: dates.length > 0 ? dates : ['Aucune donnée'],
-          datasets: [{
-            label: 'Messages postés',
-            data: messageCounts.length > 0 ? messageCounts : [0],
-            backgroundColor: '#6064f4',
-            borderColor: '#4346ab',
-            borderWidth: 1,
-            barPercentage: 0.9,
-            categoryPercentage: 0.95
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          layout: {
-            padding: {
-              left: 10,
-              right: 10,
-              top: 10,
-              bottom: 10
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                stepSize: 1,
-                color: '#b9bbbe',
-                font: {
-                  size: 14
-                }
-              },
-              grid: {
-                color: '#40444b'
-              },
-              title: {
-                display: true,
-                text: 'Nombre de messages',
-                color: '#b9bbbe',
-                font: {
-                  size: 16
-                }
-              }
-            },
-            x: {
-              ticks: {
-                color: '#b9bbbe',
-                font: {
-                  size: 14
-                },
-                maxRotation: 45,
-                minRotation: 45
-              },
-              grid: {
-                display: false
-              },
-              title: {
-                display: false
-              }
-            }
-          },
-          plugins: {
-            legend: {
-              labels: {
-                color: '#b9bbbe',
-                font: {
-                  size: 16
-                }
-              }
-            },
-            title: {
-              display: false
-            }
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Erreur lors du chargement de Chart.js.', error);
-      canvas.style.display = 'none';
-      const errorMessage = document.createElement('p');
-      errorMessage.textContent = 'Erreur : Impossible de charger le graphique.';
-      errorMessage.style.color = '#ff0000';
-      errorMessage.style.textAlign = 'center';
-      chartContainer.insertBefore(errorMessage, closeButton);
-    }
-
-    window.addEventListener("keydown", (e) => e.key === "Escape" && overlay.remove());
-  }
-
-  function showFusionMenu(pseudo, count, container) {
-    container.innerHTML = "";
-
-    const description = window.document.createElement("p");
-    description.textContent = `Sélectionnez un ou plusieurs pseudos à fusionner avec "${pseudo}".`;
-    Object.assign(description.style, {
-      fontSize: "14px",
-      marginBottom: "15px",
-      textAlign: "center",
-      color: "#b9bbbe",
-      lineHeight: "1.4",
-    });
-    container.appendChild(description);
-
-    const searchContainer = window.document.createElement("div");
-    Object.assign(searchContainer.style, {
-      position: "relative",
-      width: "100%",
-      marginBottom: "10px",
-    });
-
-    const searchInput = window.document.createElement("input");
-    searchInput.type = "text";
-    searchInput.placeholder = "Rechercher un pseudo...";
-    Object.assign(searchInput.style, {
-      width: "100%",
-      padding: "10px 35px 10px 10px",
-      border: "1px solid #40444b",
-      borderRadius: "8px",
-      backgroundColor: "#1e1f22",
-      color: "#ffffff",
-      fontSize: "14px",
-      outline: "none",
-      transition: "border-color 0.3s ease",
-      boxSizing: "border-box",
-    });
-
-    const clearButton = window.document.createElement("span");
-    clearButton.textContent = "×";
-    Object.assign(clearButton.style, {
-      position: "absolute",
-      right: "10px",
-      top: "50%",
-      transform: "translateY(-50%)",
-      cursor: "pointer",
-      color: "#b9bbbe",
-      fontSize: "20px",
-      display: "none",
-      transition: "color 0.2s ease",
-    });
-
-    clearButton.addEventListener("click", () => {
-      searchInput.value = "";
-      updatePseudosList();
-      clearButton.style.display = "none";
-    });
-
-    clearButton.addEventListener("mouseenter", () => {
-      clearButton.style.color = "#ffffff";
-    });
-
-    clearButton.addEventListener("mouseleave", () => {
-      clearButton.style.color = "#b9bbbe";
-    });
-
-    searchInput.addEventListener("input", () => {
-      updatePseudosList(searchInput.value.trim());
-      clearButton.style.display = searchInput.value.trim() ? "block" : "none";
-    });
-
-    searchContainer.appendChild(searchInput);
-    searchContainer.appendChild(clearButton);
-    container.appendChild(searchContainer);
-
-    const fusionSelect = window.document.createElement("select");
-    fusionSelect.multiple = true;
-    Object.assign(fusionSelect.style, {
-      width: "100%",
-      height: "200px",
-      marginBottom: "15px",
-      padding: "10px",
-      border: "1px solid #40444b",
-      borderRadius: "8px",
-      backgroundColor: "#1e1f22",
-      color: "#ffffff",
-      fontSize: "14px",
-      cursor: "pointer",
-      outline: "none",
-      transition: "border-color 0.3s ease",
-    });
-
-    const updatePseudosList = (filter = "") => {
-      fusionSelect.innerHTML = '';
-
-      const availablePseudos = [...messagesCount.entries()]
-        .filter(([p, _]) => p !== pseudo && p.toLowerCase().includes(filter.toLowerCase()))
-        .sort((a, b) => a[0].localeCompare(b[0]));
-
-      for (const [p, c] of availablePseudos) {
-        const option = window.document.createElement("option");
-        option.value = p;
-        option.textContent = `${p} (${c} ${c > 1 ? "messages" : "message"})`;
-        fusionSelect.appendChild(option);
-      }
-    };
-
-    updatePseudosList();
-
-    const confirmButton = window.document.createElement("button");
-    confirmButton.textContent = "Confirmer la fusion";
-    Object.assign(confirmButton.style, {
-      width: "100%",
-      padding: "12px",
-      backgroundColor: "#d39100",
-      color: "#ffffff",
-      border: "none",
-      borderRadius: "8px",
-      cursor: "pointer",
-      marginTop: "10px",
-      fontSize: "16px",
-      fontWeight: "600",
-    });
-
-    confirmButton.addEventListener("click", () => {
-      const selectedOptions = [...fusionSelect.selectedOptions];
-      if (selectedOptions.length > 0) {
-        selectedOptions.forEach(option => {
-          const sourcePseudo = option.value;
-          fusionPseudos(pseudo, sourcePseudo, messagesCount.get(sourcePseudo));
-        });
-
-        updateResults();
-        searchInput.value = "";
-        clearButton.style.display = "none";
-        updatePseudosList();
-        showNotification(`${selectedOptions.length} pseudo(s) fusionné(s) avec ${pseudo}`, "success");
-      }
-    });
-
-    container.appendChild(fusionSelect);
-    container.appendChild(confirmButton);
-  }
-
-  function updateStatus(text, className = "green", isPaused = false) {
-    const spinner = '<span id="spinner"></span>';
-    statusElement.innerHTML = `${isPaused || isPendingRequest ? "" : spinner} ${text}`;
-    statusElement.className = `status ${className}`;
-
-    const pauseButton = window.document.querySelector(".controls button:first-child");
-    const resumeButton = window.document.querySelector(".controls button:nth-child(2)");
-
-    switch (true) {
-      case text.includes("Erreur 403"):
-        resumeButton.classList.add("active");
-        resumeButton.classList.remove("disabled");
-        resumeButton.removeAttribute("disabled");
-        pauseButton.classList.add("disabled");
-        pauseButton.setAttribute("disabled", "true");
-        break;
-
-      case text.includes("Analyse mise en pause.") && !isPendingRequest:
-        resumeButton.classList.add("active");
-        resumeButton.classList.remove("disabled");
-        resumeButton.removeAttribute("disabled");
-        pauseButton.classList.add("disabled");
-        pauseButton.setAttribute("disabled", "true");
-        break;
-
-      case text.includes("Analyse mise en pause.") && isPendingRequest:
-        resumeButton.classList.remove("active");
-        resumeButton.classList.add("disabled");
-        resumeButton.setAttribute("disabled", "true");
-        pauseButton.classList.add("disabled");
-        pauseButton.setAttribute("disabled", "true");
-        break;
-
-      case text.includes("Analyse terminée."):
-        resumeButton.classList.add("disabled");
-        resumeButton.setAttribute("disabled", "true");
-        pauseButton.classList.add("disabled");
-        pauseButton.setAttribute("disabled", "true");
-        break;
-
-      default:
-        resumeButton.classList.remove("active");
-        resumeButton.classList.add("disabled");
-        resumeButton.setAttribute("disabled", "true");
-        pauseButton.classList.remove("disabled");
-        pauseButton.removeAttribute("disabled");
-        break;
-    }
-  }
-
-  function updateSummary() {
-    const totalTime = Date.now() - startTime;
-    const pagesRemaining = currentPage <= maxPages ? maxPages - currentPage + 1 : 0;
-    const summary =
-      `<div class="topic-title bold">Titre du topic : ${topicTitle}</div>\n` +
-      "Total de messages analysés : " + totalMessages + "<br>\n" +
-      "Pages restantes : " + (pagesRemaining > 0 ? pagesRemaining : "Aucune") + "<br>\n" +
-      "Total de pages analysées : " + totalPages + "<br>\n" +
-      "Durée totale de l'analyse : " + new Date(totalTime).toISOString().substr(11, 8);
-    summaryElement.innerHTML = summary;
-  }
-
-  async function checkScriptVersion() {
-    try {
-      const response = await fetch('https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/Analysis-tool-thread.js');
-      const onlineScript = await response.text();
-      const onlineScriptVersion = onlineScript.match(/const scriptVersion = "(.+)";/)[1];
-
-      if (onlineScriptVersion !== scriptVersion) {
-        console.warn(`Analysis-tool-for-jeuxvideo.com-threads → Vous utilisez actuellement une ancienne version du script (${scriptVersion}). Une nouvelle version du script (${onlineScriptVersion}) est disponible : https://github.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads`)
-      } else {
-        console.log(`Analysis-tool-for-jeuxvideo.com-threads → Vous utilisez bien la dernière version du script : ${scriptVersion} 👍`);
-      }
-    } catch (error) {
-      console.error('Analysis-tool-for-jeuxvideo.com-threads → Erreur lors de la vérification de la version du script :', error);
-    }
-  }
+	const progressBar = window.document.querySelector(".progress-bar .fill");
+	const summaryElement = window.document.querySelector("#summary");
+	const resultsTable = window.document.querySelector("#results");
+	const statusElement = window.document.querySelector("#status");
+	const notificationContainer = window.document.querySelector(".notification-container");
+
+	function showNotification(message, type = 'info', duration = 3000) {
+		const notification = document.createElement('div');
+		notification.classList.add('notification', type);
+		notification.textContent = message;
+		notificationContainer.appendChild(notification);
+
+		requestAnimationFrame(() => {
+			notification.classList.add('show');
+		});
+
+		setTimeout(() => {
+			notification.classList.remove('show');
+			setTimeout(() => {
+				notificationContainer.removeChild(notification);
+			}, 300);
+		}, duration);
+	}
+
+	pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true));
+	resumeAnalysis = () => !isPendingRequest && isPaused && (isPaused = false, updateStatus("Analyse en cours..."), handlePage());
+	updateProgress = () => progressBar.style.width = window.document.querySelector(".progress-percentage").textContent = `${Math.min((currentPage / maxPages) * 100, 100).toFixed(0)}%`;
+
+
+	copyResults = () => {
+		try {
+			const rows = window.document.querySelectorAll("#results tr");
+			let resultsText = window.document.querySelector("#summary").textContent + "\n\n";
+			rows.forEach(row => {
+				const cells = row.querySelectorAll("td");
+				if (cells.length >= 3)
+					resultsText += `#${cells[0]?.textContent.split(' ')[0] || "?"} : ${cells[1]?.textContent || "?"} -> ${parseInt(cells[2]?.textContent) || 0} ${parseInt(cells[2]?.textContent) === 1 ? "message" : "messages"}\n`;
+			});
+			navigator.clipboard.writeText(resultsText.replace(/Pages restantes.*\n|Analyse terminée.\n/, ''))
+				.then(() => showNotification("Résultats copiés dans le presse-papiers !", "success"))
+				.catch(err => {
+					console.error("Échec de la copie des résultats :", err);
+					showNotification("Échec de la copie des résultats.", "error");
+				});
+
+		} catch (e) {
+			showNotification(`Erreur : ${e}`, "error");
+		}
+	};
+
+	handlePage();
+
+	async function handlePage(attempt = 1) {
+		if (isPaused) {
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			return handlePage(attempt);
+		}
+
+		if (statusElement.innerHTML !== `<span id="spinner"></span> Analyse en cours...`) {
+			updateStatus("Analyse en cours...", "green", false);
+		}
+
+		const pagesToProcess = [];
+		const originalCurrentPage = currentPage;
+		for (let i = 0; i < 25 && currentPage <= maxPages; i++) {
+			if (!analyzedPages.has(currentPage)) {
+				pagesToProcess.push(currentPage);
+			}
+			currentPage++;
+		}
+
+		if (pagesToProcess.length === 0) {
+			if (currentPage > maxPages) {
+				updateStatus("Analyse terminée.", "green bold", true);
+				showNotification("Analyse terminée ! Vous pouvez désormais interagir avec les pseudos en cliquant dessus.", "info", 10000);
+				updateSummary();
+			}
+			return;
+		}
+
+		try {
+			isPendingRequest = true;
+
+			const pagePromises = pagesToProcess.map(async (page) => {
+				const path = location.pathname.split("-").map((_, i) => i === 3 ? page : _).join("-");
+				try {
+					const response = await fetch(path);
+					if (response.status === 403) {
+						throw new Error(`Erreur 403 sur la page ${page}`);
+					}
+
+					if (response.redirected) {
+						return {
+							page,
+							redirected: true,
+							messagesOnPage: 0,
+							success: true
+						};
+					}
+
+					const body = await response.text();
+					const doc = document.implementation.createHTMLDocument();
+					doc.documentElement.innerHTML = body;
+					let messagesOnPage = 0;
+
+					doc.querySelectorAll(".bloc-pseudo-msg").forEach((messageElement) => {
+						const isBlacklisted = messageElement.closest(".conteneur-message-blacklist") !== null;
+						const pseudoElement = messageElement.querySelector(".text-user") || messageElement;
+						const pseudo = pseudoElement.innerText.trim();
+
+						if (!isBlacklisted && pseudo !== "Auteur blacklisté") {
+							messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
+							messagesOnPage++;
+
+							const messageContainer = messageElement.closest(".conteneur-message");
+							if (messageContainer) {
+								const dateElement = messageContainer.querySelector(".bloc-date-msg");
+								let messageDate = null;
+								if (dateElement) {
+									const dateText = dateElement.textContent.trim();
+									messageDate = dateText.split(' à ')[0];
+								}
+
+								if (!userStats.has(pseudo)) {
+									userStats.set(pseudo, {
+										totalChars: 0,
+										messageCount: 0,
+										averageChars: 0,
+										stickerCount: 0,
+										messageDates: new Map()
+									});
+								}
+								const stats = userStats.get(pseudo);
+								stats.messageCount++;
+								if (messageDate) {
+									stats.messageDates.set(messageDate, (stats.messageDates.get(messageDate) || 0) + 1);
+								}
+
+								const messageContent = messageContainer.querySelector(".txt-msg");
+								if (messageContent) {
+									const tempDiv = document.createElement('div');
+									tempDiv.innerHTML = messageContent.innerHTML;
+
+									const stickerRegex = /https?:\/\/(?:www\.)?(noelshack\.com|image\.noelshack\.com)\/.*\.(png|jpe?g|gif)$/i;
+									let stickersFound = 0;
+
+									const imgElements = tempDiv.querySelectorAll('img');
+									imgElements.forEach(img => {
+										if (img.closest('blockquote')) return;
+
+										const src = img.getAttribute('src');
+
+										if (src && (stickerRegex.test(src) || src.includes("image.jeuxvideo.com/stickers"))) {
+											stickersFound++;
+										}
+									});
+
+									const stats = userStats.get(pseudo);
+									stats.stickerCount = (stats.stickerCount || 0) + stickersFound;
+
+									tempDiv.querySelectorAll('a').forEach(a => a.remove());
+									const textContent = tempDiv.textContent || '';
+									const charCount = textContent.replace(/\s+/g, '').length;
+									stats.totalChars += charCount;
+									stats.averageChars = Math.round(stats.totalChars / stats.messageCount);
+								}
+							}
+						}
+					});
+
+					return {
+						page,
+						redirected: false,
+						messagesOnPage,
+						success: true
+					};
+				} catch (error) {
+					return {
+						page,
+						success: false,
+						error: error.message
+					};
+				}
+			});
+
+			const results = await Promise.allSettled(pagePromises);
+			let has403Error = false;
+			let pagesProcessed = 0;
+			let failedPages = [];
+
+			results.forEach((result, index) => {
+				const page = pagesToProcess[index];
+				if (result.status === "fulfilled" && result.value.success) {
+					const {
+						redirected,
+						messagesOnPage
+					} = result.value;
+					analyzedPages.add(page);
+					pagesProcessed++;
+					if (!redirected) {
+						totalMessages += messagesOnPage;
+						totalPages++;
+					}
+				} else if (result.status === "fulfilled" && !result.value.success) {
+					console.error(`Erreur sur la page ${page}: ${result.value.error}`);
+					if (result.value.error.includes("Erreur 403")) {
+						has403Error = true;
+					} else {
+						failedPages.push(page);
+					}
+				} else {
+					console.error(`Erreur sur la page ${page}: ${result.reason}`);
+					failedPages.push(page);
+				}
+			});
+
+			isPendingRequest = false;
+
+			if (has403Error) {
+				currentPage = originalCurrentPage;
+				isPaused = true;
+				updateStatus("Erreur 403 : Veuillez résoudre le CAPTCHA Cloudflare puis cliquer sur Reprendre.", "red", true);
+				showNotification("Erreur 403 détectée.", "error", 10000);
+				updateSummary();
+				return;
+			}
+
+			if (pagesProcessed > 0) {
+				updateProgress();
+				updateResults();
+				updateSummary();
+			}
+
+			const allRedirected = pagesProcessed === pagesToProcess.length && results.every((result) => result.status === "fulfilled" && result.value.success && result.value.redirected);
+
+			if (allRedirected && currentPage > maxPages) {
+				updateStatus("Analyse terminée.", "green bold", true);
+				showNotification("Analyse terminée ! Vous pouvez désormais interagir avec les pseudos en cliquant dessus.", "info", 10000);
+				updateSummary();
+				return;
+			}
+
+			if (failedPages.length > 0 && attempt < 50) {
+				currentPage = originalCurrentPage;
+				updateStatus(`Erreur réseau sur ${failedPages.length} page(s), tentative ${attempt}/50.`, "orange", false);
+				showNotification(`Erreur réseau sur ${failedPages.length} page(s), tentative ${attempt}/50.`, "warning", 5000);
+				const delay = Math.min(2 ** attempt * 100, 5000);
+				await new Promise(resolve => setTimeout(resolve, delay));
+				const retryPages = failedPages.filter(page => !analyzedPages.has(page));
+				if (retryPages.length > 0) {
+					currentPage = Math.min(...retryPages);
+					return handlePage(attempt + 1);
+				}
+			} else if (failedPages.length > 0) {
+				currentPage = originalCurrentPage;
+				console.error("Échec malgré plusieurs tentatives pour les pages:", failedPages);
+				updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red bold", true);
+				showNotification(`Erreur fatale sur ${failedPages.length} page(s) après 50 tentatives.`, "error", 30000000);
+				updateSummary();
+				return;
+			}
+
+			if (!isPaused) {
+				handlePage(1);
+			} else {
+				updateStatus("Analyse mise en pause.", "orange", true);
+				updateSummary();
+			}
+
+		} catch (error) {
+			console.error("Erreur lors du traitement des pages:", error);
+			currentPage = originalCurrentPage;
+			isPendingRequest = false;
+
+			if (attempt < 50) {
+				updateStatus(`Erreur, tentative ${attempt}/50...`, "orange", false);
+				showNotification(`Erreur, tentative ${attempt}/50 après un délai...`, "warning", 5000);
+				const delay = Math.min(2 ** attempt * 100, 5000);
+				await new Promise(resolve => setTimeout(resolve, delay));
+				handlePage(attempt + 1);
+			} else {
+				console.error("Échec malgré plusieurs tentatives.");
+				updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red bold", true);
+				showNotification(`Erreur fatale : ${error.message}`, "error", 30000000);
+				updateSummary();
+			}
+		}
+	}
+
+	function updateResults() {
+		resultsTable.innerHTML = "";
+		let sorted = [...messagesCount.entries()].sort((a, b) => b[1] - a[1]);
+
+		sorted.forEach(([pseudo, count], index) => {
+			let row = window.document.createElement("tr");
+			let position = index + 1;
+			let positionChange = "";
+			let previousPosition = previousPositions.get(pseudo);
+			let percentage = ((count / totalMessages) * 100).toFixed(1);
+
+			switch (true) {
+				case typeof previousPosition !== "undefined" && position < previousPosition:
+					positionChange = `<span class="green">⇧ ${previousPosition - position}</span>`;
+					break;
+
+				case typeof previousPosition !== "undefined" && position > previousPosition:
+					positionChange = `<span class="red">⇩ ${position - previousPosition}</span>`;
+					break;
+
+				default:
+					positionChange = "";
+			}
+
+			previousPositions.set(pseudo, position);
+			row.innerHTML = `<td>${position} ${positionChange}</td><td>${pseudo}</td><td>${count} <span style="color: #b9bbbe; font-size: 0.72em;">(${percentage}%)</span></td>`;
+
+			if (currentPage > maxPages) {
+				row.addEventListener("click", (e) => {
+					if (e.target.tagName !== 'TD') return;
+					showUserActionMenu(pseudo, count, row);
+				});
+
+				row.addEventListener("mouseover", () => {
+					const cells = row.querySelectorAll("td");
+					cells.forEach(cell => {
+						cell.style.backgroundColor = "rgba(0, 0, 0, 0.2)";
+					});
+					row.style.cursor = "pointer";
+				});
+
+				row.addEventListener("mouseout", () => {
+					const cells = row.querySelectorAll("td");
+					cells.forEach(cell => {
+						cell.style.backgroundColor = "";
+					});
+				});
+			}
+			resultsTable.appendChild(row);
+		});
+	}
+
+	function fusionPseudos(targetPseudo, sourcePseudo, count) {
+		messagesCount.set(targetPseudo, (messagesCount.get(targetPseudo) || 0) + count);
+		messagesCount.delete(sourcePseudo);
+		previousPositions.delete(sourcePseudo);
+
+		if (userStats.has(sourcePseudo)) {
+			const sourceStats = userStats.get(sourcePseudo);
+			if (!userStats.has(targetPseudo)) {
+				userStats.set(targetPseudo, {
+					totalChars: 0,
+					messageCount: 0,
+					averageChars: 0,
+					stickerCount: 0,
+					messageDates: new Map()
+				});
+			}
+			const targetStats = userStats.get(targetPseudo);
+			targetStats.totalChars += sourceStats.totalChars;
+			targetStats.messageCount += sourceStats.messageCount;
+			targetStats.averageChars = Math.round(targetStats.totalChars / targetStats.messageCount);
+			targetStats.stickerCount = (targetStats.stickerCount || 0) + (sourceStats.stickerCount || 0);
+
+			for (const [date, count] of sourceStats.messageDates) {
+				targetStats.messageDates.set(date, (targetStats.messageDates.get(date) || 0) + count);
+			}
+
+			userStats.delete(sourcePseudo);
+		}
+	}
+
+	function showUserActionMenu(pseudo, count, row) {
+		const overlay = window.document.createElement("div");
+		Object.assign(overlay.style, {
+			position: "fixed",
+			top: "0",
+			left: "0",
+			width: "100%",
+			height: "100%",
+			backgroundColor: "rgba(0, 0, 0, 0.5)",
+			zIndex: "99",
+			display: "flex",
+			alignItems: "center",
+			justifyContent: "center",
+		});
+
+		const menu = window.document.createElement("div");
+		Object.assign(menu.style, {
+			backgroundColor: "#2c2f33",
+			border: "1px solid #40444b",
+			borderRadius: "12px",
+			padding: "25px",
+			width: "450px",
+			maxWidth: "90%",
+			boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
+			fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+			color: "#ffffff",
+			position: "relative",
+			transform: "scale(0.9)",
+			opacity: "0",
+			transition: "transform 0.3s ease, opacity 0.3s ease",
+		});
+
+		const titleContainer = window.document.createElement("div");
+		Object.assign(titleContainer.style, {
+			display: "flex",
+			alignItems: "center",
+			justifyContent: "center",
+			marginBottom: "15px",
+		});
+
+		const title = window.document.createElement("h3");
+		title.textContent = `${pseudo}`;
+		Object.assign(title.style, {
+			fontSize: "18px",
+			textAlign: "center",
+			color: "#6064f4",
+			fontWeight: "600",
+			margin: "0 10px 0 0",
+		});
+		titleContainer.appendChild(title);
+
+		const chartButton = window.document.createElement("button");
+		chartButton.textContent = "Graphique";
+		Object.assign(chartButton.style, {
+			padding: "4px 8px",
+			fontSize: "12px",
+			background: "#6064f4",
+			color: "#ffffff",
+			border: "none",
+			borderRadius: "3px",
+			cursor: "pointer",
+			lineHeight: "1.2",
+			outline: "none",
+		});
+		chartButton.addEventListener("click", () => showActivityChart(pseudo));
+		titleContainer.appendChild(chartButton);
+
+		menu.appendChild(titleContainer);
+
+		const actionButtons = window.document.createElement("div");
+		Object.assign(actionButtons.style, {
+			display: "flex",
+			gap: "10px",
+			marginBottom: "20px",
+		});
+
+		const infoButton = window.document.createElement("button");
+		infoButton.textContent = "Plus d'infos";
+		Object.assign(infoButton.style, {
+			flex: "1",
+			padding: "12px",
+			backgroundColor: "#6064f4",
+			color: "#ffffff",
+			border: "none",
+			borderRadius: "8px",
+			cursor: "pointer",
+			fontSize: "16px",
+			fontWeight: "600",
+		});
+
+		const fusionButton = window.document.createElement("button");
+		fusionButton.textContent = "Fusionner";
+		Object.assign(fusionButton.style, {
+			flex: "1",
+			padding: "12px",
+			backgroundColor: "#d39100",
+			color: "#ffffff",
+			border: "none",
+			borderRadius: "8px",
+			cursor: "pointer",
+			fontSize: "16px",
+			fontWeight: "600",
+		});
+
+		const cancelButton = window.document.createElement("button");
+		cancelButton.textContent = "Fermer";
+		Object.assign(cancelButton.style, {
+			width: "98%",
+			padding: "12px",
+			backgroundColor: "#ff4d4d",
+			color: "#ffffff",
+			border: "none",
+			borderRadius: "8px",
+			cursor: "pointer",
+		});
+
+		const contentContainer = window.document.createElement("div");
+		contentContainer.style.marginTop = "15px";
+
+		infoButton.addEventListener("click", () => {
+			showUserStats(pseudo, contentContainer);
+		});
+
+		fusionButton.addEventListener("click", () => {
+			showFusionMenu(pseudo, count, contentContainer);
+		});
+
+		cancelButton.addEventListener("click", () => {
+			overlay.remove();
+		});
+
+		actionButtons.appendChild(infoButton);
+		actionButtons.appendChild(fusionButton);
+		menu.appendChild(actionButtons);
+		menu.appendChild(contentContainer);
+		menu.appendChild(cancelButton);
+
+		overlay.appendChild(menu);
+		window.document.body.appendChild(overlay);
+
+		requestAnimationFrame(() => {
+			menu.style.transform = "scale(1)";
+			menu.style.opacity = "1";
+		});
+
+		window.addEventListener("keydown", (e) => e.key === "Escape" && overlay.remove());
+	}
+
+	function showUserStats(pseudo, container) {
+		container.innerHTML = "";
+
+		const stats = userStats.get(pseudo) || {
+			totalChars: 0,
+			messageCount: 0,
+			averageChars: 0,
+			stickerCount: 0,
+			messageDates: new Map()
+		};
+
+		let mostActiveDay = 'Aucun';
+		let maxMessages = 0;
+		for (const [date, count] of stats.messageDates) {
+			if (count > maxMessages) {
+				maxMessages = count;
+				mostActiveDay = date;
+			}
+		}
+
+		const activeDays = stats.messageDates.size;
+		const stickerCount = stats.stickerCount || 0;
+		const messagePerActiveDay = activeDays > 0 ? Math.round(stats.messageCount / activeDays) : 0;
+
+		let averageInterval = "N/A";
+		if (stats.messageCount > 1) {
+			const monthMap = {
+				'janvier': 0,
+				'février': 1,
+				'mars': 2,
+				'avril': 3,
+				'mai': 4,
+				'juin': 5,
+				'juillet': 6,
+				'août': 7,
+				'septembre': 8,
+				'octobre': 9,
+				'novembre': 10,
+				'décembre': 11
+			};
+
+			let allTimestamps = [];
+			for (const [dateStr, count] of stats.messageDates.entries()) {
+				const parts = dateStr.trim().split(/\s+/);
+				if (parts.length < 3) continue;
+				const day = parseInt(parts[0], 10);
+				const month = monthMap[parts[1].toLowerCase()];
+				const year = parseInt(parts[2], 10);
+				if (isNaN(day) || month === undefined || isNaN(year)) continue;
+				const timestamp = new Date(year, month, day).getTime();
+				for (let i = 0; i < count; i++) {
+					allTimestamps.push(timestamp);
+				}
+			}
+
+			if (allTimestamps.length > 1) {
+				allTimestamps.sort((a, b) => a - b);
+				let totalDiff = 0;
+				for (let i = 1; i < allTimestamps.length; i++) {
+					totalDiff += allTimestamps[i] - allTimestamps[i - 1];
+				}
+				const avgDiff = totalDiff / (allTimestamps.length - 1);
+
+				let remaining = Math.floor(avgDiff / 1000);
+				const days = Math.floor(remaining / 86400);
+				remaining %= 86400;
+				const hours = Math.floor(remaining / 3600);
+				remaining %= 3600;
+				const minutes = Math.floor(remaining / 60);
+				const seconds = remaining % 60;
+
+				averageInterval =
+					(days > 0 ? days + "j " : "") +
+					(hours > 0 ? hours + "h " : "") +
+					(minutes > 0 ? minutes + "m " : "") +
+					seconds + "s";
+			}
+		}
+
+		const statsHTML = `
+          <div class="stats-container">
+            <div class="stats-row">
+              <span class="stats-label">Messages postés:</span>
+              <span class="stats-value">${stats.messageCount}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">Moy. caractères/message:</span>
+              <span class="stats-value">${stats.averageChars}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">Moy. de messages par jour:</span>
+              <span class="stats-value">${messagePerActiveDay}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">Stickers postés:</span>
+              <span class="stats-value">${stickerCount}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">Temps moy. entre deux messages:</span>
+              <span class="stats-value">${averageInterval}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">Jour le plus actif:</span>
+              <span class="stats-value">${mostActiveDay} (${maxMessages} messages)</span>
+            </div>
+          </div>
+        `;
+		container.innerHTML = statsHTML;
+	}
+
+	async function loadScript(src) {
+		return new Promise((resolve, reject) => {
+			const script = document.createElement('script');
+			script.src = src;
+			script.async = true;
+			script.onload = resolve;
+			script.onerror = reject;
+			document.head.appendChild(script);
+		});
+	}
+
+	async function showActivityChart(pseudo) {
+		const stats = userStats.get(pseudo) || {
+			messageDates: new Map()
+		};
+
+		const dates = [...stats.messageDates.keys()].sort((a, b) => {
+			const months = {
+				'janvier': 0,
+				'février': 1,
+				'mars': 2,
+				'avril': 3,
+				'mai': 4,
+				'juin': 5,
+				'juillet': 6,
+				'août': 7,
+				'septembre': 8,
+				'octobre': 9,
+				'novembre': 10,
+				'décembre': 11
+			};
+
+			const partsA = a.trim().split(/\s+/);
+			const dayA = parseInt(partsA[0], 10);
+			const monthA = months[partsA[1]?.toLowerCase()];
+			const yearA = parseInt(partsA[2], 10);
+
+			const partsB = b.trim().split(/\s+/);
+			const dayB = parseInt(partsB[0], 10);
+			const monthB = months[partsB[1]?.toLowerCase()];
+			const yearB = parseInt(partsB[2], 10);
+
+			if (isNaN(dayA) || monthA === undefined || isNaN(yearA)) {
+				return -1;
+			}
+			if (isNaN(dayB) || monthB === undefined || isNaN(yearB)) {
+				return 1;
+			}
+
+			const dateA = new Date(yearA, monthA, dayA);
+			const dateB = new Date(yearB, monthB, dayB);
+
+			return dateA - dateB;
+		});
+
+		const messageCounts = dates.map(date => stats.messageDates.get(date) || 0);
+
+		const overlay = document.createElement("div");
+		Object.assign(overlay.style, {
+			position: "fixed",
+			top: "0",
+			left: "0",
+			width: "100%",
+			height: "100%",
+			backgroundColor: "rgba(0, 0, 0, 0.5)",
+			zIndex: "100",
+			display: "flex",
+			alignItems: "center",
+			justifyContent: "center",
+		});
+
+		const chartContainer = document.createElement("div");
+		Object.assign(chartContainer.style, {
+			backgroundColor: "#2c2f33",
+			border: "1px solid #40444b",
+			borderRadius: "12px",
+			padding: "25px",
+			width: "800px",
+			maxWidth: "95%",
+			maxHeight: "90%",
+			overflowY: "auto",
+			boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
+			position: "relative",
+			transform: "scale(0.9)",
+			opacity: "0",
+			transition: "transform 0.3s ease, opacity 0.3s ease",
+		});
+
+		const title = document.createElement("h3");
+		title.textContent = `Activité quotidienne de ${pseudo}`;
+		Object.assign(title.style, {
+			fontSize: "20px",
+			marginBottom: "20px",
+			textAlign: "center",
+			color: "#6064f4",
+			fontWeight: "600",
+		});
+		chartContainer.appendChild(title);
+
+		const canvas = document.createElement("canvas");
+		Object.assign(canvas.style, {
+			maxHeight: "500px",
+			width: "100%",
+		});
+		chartContainer.appendChild(canvas);
+
+		const closeButton = document.createElement("button");
+		closeButton.textContent = "Fermer";
+		Object.assign(closeButton.style, {
+			width: "98%",
+			padding: "12px",
+			backgroundColor: "#ff4d4d",
+			color: "#ffffff",
+			border: "none",
+			borderRadius: "8px",
+			cursor: "pointer",
+			marginTop: "20px",
+			fontSize: "16px",
+		});
+		closeButton.addEventListener("click", () => overlay.remove());
+		chartContainer.appendChild(closeButton);
+
+		overlay.appendChild(chartContainer);
+		document.body.appendChild(overlay);
+
+		requestAnimationFrame(() => {
+			chartContainer.style.transform = "scale(1)";
+			chartContainer.style.opacity = "1";
+		});
+
+		try {
+			if (typeof Chart === 'undefined') {
+				await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
+			}
+
+			new Chart(canvas, {
+				type: 'bar',
+				data: {
+					labels: dates.length > 0 ? dates : ['Aucune donnée'],
+					datasets: [{
+						label: 'Messages postés',
+						data: messageCounts.length > 0 ? messageCounts : [0],
+						backgroundColor: '#6064f4',
+						borderColor: '#4346ab',
+						borderWidth: 1,
+						barPercentage: 0.9,
+						categoryPercentage: 0.95
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					layout: {
+						padding: {
+							left: 10,
+							right: 10,
+							top: 10,
+							bottom: 10
+						}
+					},
+					scales: {
+						y: {
+							beginAtZero: true,
+							ticks: {
+								stepSize: 1,
+								color: '#b9bbbe',
+								font: {
+									size: 14
+								}
+							},
+							grid: {
+								color: '#40444b'
+							},
+							title: {
+								display: true,
+								text: 'Nombre de messages',
+								color: '#b9bbbe',
+								font: {
+									size: 16
+								}
+							}
+						},
+						x: {
+							ticks: {
+								color: '#b9bbbe',
+								font: {
+									size: 14
+								},
+								maxRotation: 45,
+								minRotation: 45
+							},
+							grid: {
+								display: false
+							},
+							title: {
+								display: false
+							}
+						}
+					},
+					plugins: {
+						legend: {
+							labels: {
+								color: '#b9bbbe',
+								font: {
+									size: 16
+								}
+							}
+						},
+						title: {
+							display: false
+						}
+					}
+				}
+			});
+		} catch (error) {
+			console.error('Erreur lors du chargement de Chart.js.', error);
+			canvas.style.display = 'none';
+			const errorMessage = document.createElement('p');
+			errorMessage.textContent = 'Erreur : Impossible de charger le graphique.';
+			errorMessage.style.color = '#ff0000';
+			errorMessage.style.textAlign = 'center';
+			chartContainer.insertBefore(errorMessage, closeButton);
+		}
+
+		window.addEventListener("keydown", (e) => e.key === "Escape" && overlay.remove());
+	}
+
+	function showFusionMenu(pseudo, count, container) {
+		container.innerHTML = "";
+
+		const description = window.document.createElement("p");
+		description.textContent = `Sélectionnez un ou plusieurs pseudos à fusionner avec "${pseudo}".`;
+		Object.assign(description.style, {
+			fontSize: "14px",
+			marginBottom: "15px",
+			textAlign: "center",
+			color: "#b9bbbe",
+			lineHeight: "1.4",
+		});
+		container.appendChild(description);
+
+		const searchContainer = window.document.createElement("div");
+		Object.assign(searchContainer.style, {
+			position: "relative",
+			width: "100%",
+			marginBottom: "10px",
+		});
+
+		const searchInput = window.document.createElement("input");
+		searchInput.type = "text";
+		searchInput.placeholder = "Rechercher un pseudo...";
+		Object.assign(searchInput.style, {
+			width: "100%",
+			padding: "10px 35px 10px 10px",
+			border: "1px solid #40444b",
+			borderRadius: "8px",
+			backgroundColor: "#1e1f22",
+			color: "#ffffff",
+			fontSize: "14px",
+			outline: "none",
+			transition: "border-color 0.3s ease",
+			boxSizing: "border-box",
+		});
+
+		const clearButton = window.document.createElement("span");
+		clearButton.textContent = "×";
+		Object.assign(clearButton.style, {
+			position: "absolute",
+			right: "10px",
+			top: "50%",
+			transform: "translateY(-50%)",
+			cursor: "pointer",
+			color: "#b9bbbe",
+			fontSize: "20px",
+			display: "none",
+			transition: "color 0.2s ease",
+		});
+
+		clearButton.addEventListener("click", () => {
+			searchInput.value = "";
+			updatePseudosList();
+			clearButton.style.display = "none";
+		});
+
+		clearButton.addEventListener("mouseenter", () => {
+			clearButton.style.color = "#ffffff";
+		});
+
+		clearButton.addEventListener("mouseleave", () => {
+			clearButton.style.color = "#b9bbbe";
+		});
+
+		searchInput.addEventListener("input", () => {
+			updatePseudosList(searchInput.value.trim());
+			clearButton.style.display = searchInput.value.trim() ? "block" : "none";
+		});
+
+		searchContainer.appendChild(searchInput);
+		searchContainer.appendChild(clearButton);
+		container.appendChild(searchContainer);
+
+		const fusionSelect = window.document.createElement("select");
+		fusionSelect.multiple = true;
+		Object.assign(fusionSelect.style, {
+			width: "100%",
+			height: "200px",
+			marginBottom: "15px",
+			padding: "10px",
+			border: "1px solid #40444b",
+			borderRadius: "8px",
+			backgroundColor: "#1e1f22",
+			color: "#ffffff",
+			fontSize: "14px",
+			cursor: "pointer",
+			outline: "none",
+			transition: "border-color 0.3s ease",
+		});
+
+		const updatePseudosList = (filter = "") => {
+			fusionSelect.innerHTML = '';
+
+			const availablePseudos = [...messagesCount.entries()]
+				.filter(([p, _]) => p !== pseudo && p.toLowerCase().includes(filter.toLowerCase()))
+				.sort((a, b) => a[0].localeCompare(b[0]));
+
+			for (const [p, c] of availablePseudos) {
+				const option = window.document.createElement("option");
+				option.value = p;
+				option.textContent = `${p} (${c} ${c > 1 ? "messages" : "message"})`;
+				fusionSelect.appendChild(option);
+			}
+		};
+
+		updatePseudosList();
+
+		const confirmButton = window.document.createElement("button");
+		confirmButton.textContent = "Confirmer la fusion";
+		Object.assign(confirmButton.style, {
+			width: "98%",
+			padding: "12px",
+			backgroundColor: "#d39100",
+			color: "#ffffff",
+			border: "none",
+			borderRadius: "8px",
+			cursor: "pointer",
+			marginTop: "10px",
+			fontSize: "16px",
+			fontWeight: "600",
+		});
+
+		confirmButton.addEventListener("click", () => {
+			const selectedOptions = [...fusionSelect.selectedOptions];
+			if (selectedOptions.length > 0) {
+				selectedOptions.forEach(option => {
+					const sourcePseudo = option.value;
+					fusionPseudos(pseudo, sourcePseudo, messagesCount.get(sourcePseudo));
+				});
+
+				updateResults();
+				searchInput.value = "";
+				clearButton.style.display = "none";
+				updatePseudosList();
+				showNotification(`${selectedOptions.length} pseudo(s) fusionné(s) avec ${pseudo}`, "success");
+			}
+		});
+
+		container.appendChild(fusionSelect);
+		container.appendChild(confirmButton);
+	}
+
+	function updateStatus(text, className = "green", isPaused = false) {
+		const spinner = '<span id="spinner"></span>';
+		statusElement.innerHTML = `${isPaused || isPendingRequest ? "" : spinner} ${text}`;
+		statusElement.className = `status ${className}`;
+
+		const pauseButton = window.document.querySelector(".controls button:first-child");
+		const resumeButton = window.document.querySelector(".controls button:nth-child(2)");
+
+		switch (true) {
+			case text.includes("Erreur 403"):
+				resumeButton.classList.add("active");
+				resumeButton.classList.remove("disabled");
+				resumeButton.removeAttribute("disabled");
+				pauseButton.classList.add("disabled");
+				pauseButton.setAttribute("disabled", "true");
+				break;
+
+			case text.includes("Analyse mise en pause.") && !isPendingRequest:
+				resumeButton.classList.add("active");
+				resumeButton.classList.remove("disabled");
+				resumeButton.removeAttribute("disabled");
+				pauseButton.classList.add("disabled");
+				pauseButton.setAttribute("disabled", "true");
+				break;
+
+			case text.includes("Analyse mise en pause.") && isPendingRequest:
+				resumeButton.classList.remove("active");
+				resumeButton.classList.add("disabled");
+				resumeButton.setAttribute("disabled", "true");
+				pauseButton.classList.add("disabled");
+				pauseButton.setAttribute("disabled", "true");
+				break;
+
+			case text.includes("Analyse terminée."):
+				resumeButton.classList.add("disabled");
+				resumeButton.setAttribute("disabled", "true");
+				pauseButton.classList.add("disabled");
+				pauseButton.setAttribute("disabled", "true");
+				break;
+
+			default:
+				resumeButton.classList.remove("active");
+				resumeButton.classList.add("disabled");
+				resumeButton.setAttribute("disabled", "true");
+				pauseButton.classList.remove("disabled");
+				pauseButton.removeAttribute("disabled");
+				break;
+		}
+	}
+
+	function updateSummary() {
+		const totalTime = Date.now() - startTime;
+		const pagesRemaining = currentPage <= maxPages ? maxPages - currentPage + 1 : 0;
+		const summary =
+			`<div class="topic-title bold">Titre du topic : ${topicTitle}</div>\n` +
+			"Total de messages analysés : " + totalMessages + "<br>\n" +
+			"Pages restantes : " + (pagesRemaining > 0 ? pagesRemaining : "Aucune") + "<br>\n" +
+			"Total de pages analysées : " + totalPages + "<br>\n" +
+			"Durée totale de l'analyse : " + new Date(totalTime).toISOString().substr(11, 8);
+		summaryElement.innerHTML = summary;
+	}
+
+	async function checkScriptVersion() {
+		try {
+			const response = await fetch('https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/Analysis-tool-thread.js');
+			const onlineScript = await response.text();
+			const onlineScriptVersion = onlineScript.match(/const scriptVersion = "(.+)";/)[1];
+
+			if (onlineScriptVersion !== scriptVersion) {
+				console.warn(`Analysis-tool-for-jeuxvideo.com-threads → Vous utilisez actuellement une ancienne version du script (${scriptVersion}). Une nouvelle version du script (${onlineScriptVersion}) est disponible : https://github.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads`)
+			} else {
+				console.log(`Analysis-tool-for-jeuxvideo.com-threads → Vous utilisez bien la dernière version du script : ${scriptVersion} 👍`);
+			}
+		} catch (error) {
+			console.error('Analysis-tool-for-jeuxvideo.com-threads → Erreur lors de la vérification de la version du script :', error);
+		}
+	}
 })();

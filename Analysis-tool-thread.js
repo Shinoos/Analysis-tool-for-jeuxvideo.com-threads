@@ -17,9 +17,9 @@
     const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
 
     function userPageInput() {
-        return new Promise((resolve) => {
-            const overlay = document.createElement('div');
-            overlay.style.cssText = `
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
         position: fixed;
         top: 0;
         left: 0;
@@ -33,8 +33,8 @@
         font-family: Arial, sans-serif;
       `;
 
-            const modal = document.createElement('div');
-            modal.style.cssText = `
+      const modal = document.createElement('div');
+      modal.style.cssText = `
         background: #2c2f33;
         border-radius: 12px;
         padding: 30px;
@@ -48,9 +48,9 @@
         transition: transform 0.3s ease, opacity 0.3s ease;
       `;
 
-            const closeButton = document.createElement('button');
-            closeButton.innerHTML = '&times;';
-            closeButton.style.cssText = `
+      const closeButton = document.createElement('button');
+      closeButton.innerHTML = '&times;';
+      closeButton.style.cssText = `
         position: absolute;
         top: 10px;
         right: 10px;
@@ -70,44 +70,44 @@
         border-radius: 50%;
       `;
 
-            closeButton.addEventListener('mouseenter', () => {
-                closeButton.style.color = '#ffffff';
-                closeButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
-            });
+      closeButton.addEventListener('mouseenter', () => {
+        closeButton.style.color = '#ffffff';
+        closeButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+      });
 
-            closeButton.addEventListener('mouseleave', () => {
-                closeButton.style.color = '#b9bbbe';
-                closeButton.style.backgroundColor = 'transparent';
-            });
+      closeButton.addEventListener('mouseleave', () => {
+        closeButton.style.color = '#b9bbbe';
+        closeButton.style.backgroundColor = 'transparent';
+      });
 
-            closeButton.addEventListener('click', () => {
-                overlay.remove();
-                return;
-            });
+      closeButton.addEventListener('click', () => {
+        overlay.remove();
+        return;
+      });
 
-            const title = document.createElement('h2');
-            title.textContent = 'Sélection de la page de départ';
-            title.style.cssText = `
+      const title = document.createElement('h2');
+      title.textContent = 'Sélection de la page de départ';
+      title.style.cssText = `
         color: #6064f4;
         margin-bottom: 20px;
         font-size: 20px;
       `;
 
-            const description = document.createElement('p');
-            const pageText = maxPages === 1 ? '1 page' : ` ${maxPages} pages`;
-            description.textContent = `Ce topic contient ${pageText}. À partir de quelle page souhaitez-vous commencer l'analyse ?`;
-            description.style.cssText = `
+      const description = document.createElement('p');
+      const pageText = maxPages === 1 ? '1 page' : ` ${maxPages} pages`;
+      description.textContent = `Ce topic contient ${pageText}. À partir de quelle page souhaitez-vous commencer l'analyse ?`;
+      description.style.cssText = `
         color: #b9bbbe;
         margin-bottom: 20px;
         line-height: 1.5;
       `;
 
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.min = 1;
-            input.max = maxPages;
-            input.value = 1;
-            input.style.cssText = `
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = 1;
+      input.max = maxPages;
+      input.value = 1;
+      input.style.cssText = `
         width: 100%;
         padding: 12px;
         margin-bottom: 20px;
@@ -119,24 +119,24 @@
         text-align: center;
       `;
 
-            input.addEventListener('keydown', (event) => {
-                if (event.key === 'e' || event.key === 'E' || event.key === '+' || event.key === '-') {
-                    event.preventDefault();
-                }
-            });
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'e' || event.key === 'E' || event.key === '+' || event.key === '-') {
+          event.preventDefault();
+        }
+      });
 
-            input.addEventListener('input', () => {
-                const value = parseInt(input.value, 10) || 1;
-                if (value > maxPages) {
-                    input.value = maxPages;
-                } else if (value < 1) {
-                    input.value = 1;
-                }
-            });
+      input.addEventListener('input', () => {
+        const value = parseInt(input.value, 10) || 1;
+        if (value > maxPages) {
+          input.value = maxPages;
+        } else if (value < 1) {
+          input.value = 1;
+        }
+      });
 
-            const startButton = document.createElement('button');
-            startButton.textContent = 'Commencer l\'analyse';
-            startButton.style.cssText = `
+      const startButton = document.createElement('button');
+      startButton.textContent = 'Commencer l\'analyse';
+      startButton.style.cssText = `
         width: 100%;
         padding: 12px;
         background: #6064f4;
@@ -148,63 +148,63 @@
         transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
       `;
 
-            startButton.addEventListener('mouseenter', () => {
-                startButton.style.background = '#4346ab';
-                startButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
-            });
+      startButton.addEventListener('mouseenter', () => {
+        startButton.style.background = '#4346ab';
+        startButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
+      });
 
-            startButton.addEventListener('mouseleave', () => {
-                startButton.style.background = '#6064f4';
-                startButton.style.boxShadow = 'none';
-            });
+      startButton.addEventListener('mouseleave', () => {
+        startButton.style.background = '#6064f4';
+        startButton.style.boxShadow = 'none';
+      });
 
-            startButton.addEventListener('mousedown', () => {
-                startButton.style.transform = 'scale(0.98)';
-                startButton.style.background = '#4346ab';
-                startButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-            });
+      startButton.addEventListener('mousedown', () => {
+        startButton.style.transform = 'scale(0.98)';
+        startButton.style.background = '#4346ab';
+        startButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+      });
 
-            startButton.addEventListener('mouseup', () => {
-                startButton.style.transform = 'scale(1)';
-                startButton.style.background = '#6064f4';
-                startButton.style.boxShadow = 'none';
-            });
+      startButton.addEventListener('mouseup', () => {
+        startButton.style.transform = 'scale(1)';
+        startButton.style.background = '#6064f4';
+        startButton.style.boxShadow = 'none';
+      });
 
-            startButton.addEventListener('click', () => {
-                const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
-                overlay.remove();
-                resolve(selectedPage);
-            });
+      startButton.addEventListener('click', () => {
+        const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
+        overlay.remove();
+        resolve(selectedPage);
+      });
 
-            modal.appendChild(closeButton);
-            modal.appendChild(title);
-            modal.appendChild(description);
-            modal.appendChild(input);
-            modal.appendChild(startButton);
-            overlay.appendChild(modal);
-            document.body.appendChild(overlay);
+      modal.appendChild(closeButton);
+      modal.appendChild(title);
+      modal.appendChild(description);
+      modal.appendChild(input);
+      modal.appendChild(startButton);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
 
-            requestAnimationFrame(() => {
-                modal.style.transform = 'scale(1)';
-                modal.style.opacity = '1';
-            });
+      requestAnimationFrame(() => {
+        modal.style.transform = 'scale(1)';
+        modal.style.opacity = '1';
+      });
 
-            input.focus();
+      input.focus();
 
-            window.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
-                    overlay.remove();
-                    resolve(selectedPage);
-                }
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
+          overlay.remove();
+          resolve(selectedPage);
+        }
 
-                if (event.key === 'Escape') {
-                    overlay.remove();
-                    return;
-                }
-            });
-        });
-    }
+        if (event.key === 'Escape') {
+          overlay.remove();
+          return;
+        }
+      });
+    });
+  }
 
     const userInput = await userPageInput();
     currentPage = userInput;

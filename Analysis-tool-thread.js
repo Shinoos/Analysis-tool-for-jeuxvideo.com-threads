@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.4.4";
+    const scriptVersion = "v1.4.5";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -525,7 +525,7 @@
         }, duration);
     }
 
-    pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true), updateSummary(), pausedSummary = summaryElement.innerHTML);
+    pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true));
     resumeAnalysis = () => !isPendingRequest && isPaused && (isPaused = false, updateStatus("Analyse en cours..."), handlePage());
     updateProgress = () => progressBar.style.width = window.document.querySelector(".progress-percentage").textContent = `${Math.min((currentPage / maxPages) * 100, 100).toFixed(0)}%`;
 
@@ -620,9 +620,7 @@
                                 const dateElement = messageContainer.querySelector(".bloc-date-msg");
                                 let messageDate = null;
                                 if (dateElement) {
-                                    const dateText = dateElement.textContent.trim();
-                                    const dayPart = dateText.split(' à ')[0];
-                                    messageDate = dayPart;
+                                    messageDate = dateElement.textContent.trim();
                                 }
 
                                 if (!userStats.has(pseudo)) {
@@ -1040,17 +1038,26 @@
             messageDates: new Map()
         };
 
+        const messagesByDay = new Map();
+        for (const [dateStr, count] of stats.messageDates) {
+          const dayPart = dateStr.split(' à ')[0].trim();
+          messagesByDay.set(dayPart, (messagesByDay.get(dayPart) || 0) + count);
+        }
+
         let mostActiveDay = 'Aucun';
         let maxMessages = 0;
-        for (const [date, count] of stats.messageDates) {
+        for (const [date, count] of messagesByDay) {
             if (count > maxMessages) {
                 maxMessages = count;
                 mostActiveDay = date;
             }
         }
 
-        const activeDays = stats.messageDates.size;
+        const messageCount = stats.messageCount || 0;
+        const averageChars = stats.averageChars || 0;
+        const activeDays = messagesByDay.size;
         const stickerCount = stats.stickerCount || 0;
+        const smileyCount = stats.smileyCount || 0;
         const messagePerActiveDay = activeDays > 0 ? Math.round(stats.messageCount / activeDays) : 0;
 
         let averageInterval = "N/A";
@@ -1119,14 +1126,14 @@
           <div class="stats-container">
             <div class="stats-row">
               <span class="stats-label">Messages postés:</span>
-              <span class="stats-value">${stats.messageCount}</span>
+              <span class="stats-value">${messageCount}</span>
             </div>
             <div class="stats-row">
               <span class="stats-label">Moy. caractères/message:</span>
-              <span class="stats-value">${stats.averageChars}</span>
+              <span class="stats-value">${averageChars}</span>
             </div>
             <div class="stats-row">
-              <span class="stats-label">Moy. de messages par jour:</span>
+              <span class="stats-label" title="Calcul du nombre de messages postés par jour d'activité.\nExemple : si 10 messages sont postés lundi et 10 jeudi, alors la moyenne sera de 10 et non de 5.">Moy. de messages par jour:</span>
               <span class="stats-value">${messagePerActiveDay}</span>
             </div>
             <div class="stats-row">
@@ -1139,7 +1146,7 @@
             </div>
             <div class="stats-row">
               <span class="stats-label">Smileys postés:</span>
-              <span class="stats-value">${stats.smileyCount}</span>
+              <span class="stats-value">${smileyCount}</span>
             </div>
             <div class="stats-row">
               <span class="stats-label">Jour le plus actif:</span>
@@ -1166,7 +1173,13 @@
             messageDates: new Map()
         };
 
-        const dates = [...stats.messageDates.keys()].sort((a, b) => {
+        const messagesByDay = new Map();
+        for (const [dateStr, count] of stats.messageDates) {
+          const dayPart = dateStr.split(' à ')[0].trim();
+          messagesByDay.set(dayPart, (messagesByDay.get(dayPart) || 0) + count);
+        }
+
+        const dates = [...messagesByDay.keys()].sort((a, b) => {
             const months = {
                 'janvier': 0,
                 'février': 1,
@@ -1205,7 +1218,7 @@
             return dateA - dateB;
         });
 
-        const messageCounts = dates.map(date => stats.messageDates.get(date) || 0);
+        const messageCounts = dates.map(date => messagesByDay.get(date) || 0);
 
         const overlay = document.createElement("div");
         Object.assign(overlay.style, {
@@ -1579,7 +1592,7 @@
         const totalTime = Date.now() - startTime;
         const pagesRemaining = currentPage <= maxPages ? maxPages - currentPage + 1 : 0;
         const summary =
-            `<div class="topic-title bold">Titre du topic : ${topicTitle}</div>\n` +
+            `<div class="topic-title bold">Topic : ${topicTitle}</div>\n` +
             "Total de messages analysés : " + totalMessages + "<br>\n" +
             "Pages restantes : " + (pagesRemaining > 0 ? pagesRemaining : "Aucune") + "<br>\n" +
             "Total de pages analysées : " + totalPages + "<br>\n" +

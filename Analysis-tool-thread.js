@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.4.3";
+    const scriptVersion = "v1.4.4";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -7,6 +7,7 @@
     let totalPages = 0;
     let isPaused = false;
     let isPendingRequest = false;
+    let pausedSummary = "";
     const analyzedPages = new Set();
     const previousPositions = new Map();
     const userStats = new Map();
@@ -524,7 +525,7 @@
         }, duration);
     }
 
-    pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true));
+    pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true), updateSummary(), pausedSummary = summaryElement.innerHTML);
     resumeAnalysis = () => !isPendingRequest && isPaused && (isPaused = false, updateStatus("Analyse en cours..."), handlePage());
     updateProgress = () => progressBar.style.width = window.document.querySelector(".progress-percentage").textContent = `${Math.min((currentPage / maxPages) * 100, 100).toFixed(0)}%`;
 
@@ -620,7 +621,8 @@
                                 let messageDate = null;
                                 if (dateElement) {
                                     const dateText = dateElement.textContent.trim();
-                                    messageDate = dateText.split(' à ')[0];
+                                    const dayPart = dateText.split(' à ')[0];
+                                    messageDate = dayPart;
                                 }
 
                                 if (!userStats.has(pseudo)) {
@@ -644,7 +646,9 @@
                                     tempDiv.innerHTML = messageContent.innerHTML;
 
                                     const stickerRegex = /https?:\/\/(?:www\.)?(noelshack\.com|image\.noelshack\.com)\/.*\.(png|jpe?g|gif)$/i;
+                                    const smileyRegex = /https?:\/\/(?:www\.)?(?:jeuxvideo\.com|image.jeuxvideo\.com)\/smileys_img\/.*\.(png|jpe?g|gif)$/i;
                                     let stickersFound = 0;
+                                    let smileysFound = 0;
 
                                     const imgElements = tempDiv.querySelectorAll('img');
                                     imgElements.forEach(img => {
@@ -654,11 +658,14 @@
 
                                         if (src && (stickerRegex.test(src) || src.includes("image.jeuxvideo.com/stickers"))) {
                                             stickersFound++;
+                                        } else if (smileyRegex.test(src) || src.includes("smileys_img")) {
+                                            smileysFound++;
                                         }
                                     });
 
                                     const stats = userStats.get(pseudo);
                                     stats.stickerCount = (stats.stickerCount || 0) + stickersFound;
+                                    stats.smileyCount = (stats.smileyCount || 0) + smileysFound;
 
                                     tempDiv.querySelectorAll('a').forEach(a => a.remove());
                                     const textContent = tempDiv.textContent || '';
@@ -816,7 +823,7 @@
             previousPositions.set(pseudo, position);
             row.innerHTML = `<td>${position} ${positionChange}</td><td>${pseudo}</td><td>${count} <span style="color: #b9bbbe; font-size: 0.72em;">(${percentage}%)</span></td>`;
 
-            if (currentPage > maxPages) {
+            if (currentPage > maxPages || isPaused) {
                 row.addEventListener("click", (e) => {
                     if (e.target.tagName !== 'TD') return;
                     showUserActionMenu(pseudo, count, row);
@@ -854,6 +861,7 @@
                     messageCount: 0,
                     averageChars: 0,
                     stickerCount: 0,
+                    smileyCount: 0,
                     messageDates: new Map()
                 });
             }
@@ -862,6 +870,7 @@
             targetStats.messageCount += sourceStats.messageCount;
             targetStats.averageChars = Math.round(targetStats.totalChars / targetStats.messageCount);
             targetStats.stickerCount = (targetStats.stickerCount || 0) + (sourceStats.stickerCount || 0);
+            targetStats.smileyCount = (targetStats.smileyCount || 0) + (sourceStats.smileyCount || 0);
 
             for (const [date, count] of sourceStats.messageDates) {
                 targetStats.messageDates.set(date, (targetStats.messageDates.get(date) || 0) + count);
@@ -1027,6 +1036,7 @@
             messageCount: 0,
             averageChars: 0,
             stickerCount: 0,
+            smileyCount: 0,
             messageDates: new Map()
         };
 
@@ -1067,10 +1077,16 @@
                 const day = parseInt(parts[0], 10);
                 const month = monthMap[parts[1].toLowerCase()];
                 const year = parseInt(parts[2], 10);
-                if (isNaN(day) || month === undefined || isNaN(year)) continue;
-                const timestamp = new Date(year, month, day).getTime();
+                let hour = 0, minute = 0, second = 0;
+                if (parts.length >= 5) {
+                  const timeParts = parts[4].split(":");
+                  hour = parseInt(timeParts[0], 10) || 0;
+                  minute = parseInt(timeParts[1], 10) || 0;
+                  second = parseInt(timeParts[2], 10) || 0;
+                }
+                const timestamp = new Date(year, month, day, hour, minute, second).getTime();
                 for (let i = 0; i < count; i++) {
-                    allTimestamps.push(timestamp);
+                  allTimestamps.push(timestamp);
                 }
             }
 
@@ -1090,11 +1106,12 @@
                 const minutes = Math.floor(remaining / 60);
                 const seconds = remaining % 60;
 
-                averageInterval =
-                    (days > 0 ? days + "j " : "") +
-                    (hours > 0 ? hours + "h " : "") +
-                    (minutes > 0 ? minutes + "m " : "") +
-                    seconds + "s";
+                averageInterval = (
+                  (days ? days + "j " : "") +
+                  (hours ? hours + "h " : "") +
+                  (minutes ? minutes + "m " : "") +
+                  (seconds ? seconds + "s" : "")
+                ).trim() || "0s";
             }
         }
 
@@ -1113,16 +1130,20 @@
               <span class="stats-value">${messagePerActiveDay}</span>
             </div>
             <div class="stats-row">
-              <span class="stats-label">Stickers postés:</span>
-              <span class="stats-value">${stickerCount}</span>
-            </div>
-            <div class="stats-row">
               <span class="stats-label">Temps moy. entre deux messages:</span>
               <span class="stats-value">${averageInterval}</span>
             </div>
             <div class="stats-row">
+              <span class="stats-label">Stickers postés:</span>
+              <span class="stats-value">${stickerCount}</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">Smileys postés:</span>
+              <span class="stats-value">${stats.smileyCount}</span>
+            </div>
+            <div class="stats-row">
               <span class="stats-label">Jour le plus actif:</span>
-              <span class="stats-value">${mostActiveDay} (${maxMessages} messages)</span>
+              <span class="stats-value">${mostActiveDay.split(' à ')[0]} (${maxMessages} messages)</span>
             </div>
           </div>
         `;
@@ -1267,7 +1288,7 @@
             new Chart(canvas, {
                 type: 'bar',
                 data: {
-                    labels: dates.length > 0 ? dates : ['Aucune donnée'],
+                    labels: dates.length > 0 ? dates.map(date => date.split(' à ')[0]) : ['Aucune donnée'],
                     datasets: [{
                         label: 'Messages postés',
                         data: messageCounts.length > 0 ? messageCounts : [0],
@@ -1550,6 +1571,11 @@
     }
 
     function updateSummary() {
+        if (isPaused && pausedSummary) {
+          summaryElement.innerHTML = pausedSummary;
+          return;
+        }
+
         const totalTime = Date.now() - startTime;
         const pagesRemaining = currentPage <= maxPages ? maxPages - currentPage + 1 : 0;
         const summary =
@@ -1559,6 +1585,10 @@
             "Total de pages analysées : " + totalPages + "<br>\n" +
             "Durée totale de l'analyse : " + new Date(totalTime).toISOString().substr(11, 8);
         summaryElement.innerHTML = summary;
+
+        if (!isPaused) {
+          pausedSummary = "";
+        }
     }
 
     async function checkScriptVersion() {

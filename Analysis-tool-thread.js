@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.4.5";
+    const scriptVersion = "v1.5.0";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -11,204 +11,242 @@
     const analyzedPages = new Set();
     const previousPositions = new Map();
     const userStats = new Map();
-    const pagination = document.querySelector(".bloc-liste-num-page");
-    const maxPages = pagination ? (pagination.querySelectorAll("a.xXx.lien-jv").length > 0 ? parseInt(pagination.querySelectorAll("a.xXx.lien-jv")[Math.max(0, pagination.querySelectorAll("a.xXx.lien-jv").length - (pagination.querySelectorAll("a.xXx.lien-jv").length > 11 ? 2 : 1))].textContent, 10) || 1 : 1) : 1;
+    const maxPages = (() => { const p = document.querySelector(".bloc-liste-num-page"); if(!p) return 1; const l = p.querySelectorAll("a.xXx.lien-jv"); if(!l.length) return 1; const i = l.length>11?l.length-2:l.length-1; return parseInt(l[i].textContent,10)||1; })();
     const startTime = Date.now();
     const topicTitleElement = document.querySelector("#bloc-title-forum");
     const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
 
     function userPageInput() {
-    return new Promise((resolve) => {
-      const overlay = document.createElement('div');
-      overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        font-family: Arial, sans-serif;
-      `;
+        return new Promise((resolve) => {
+          const overlay = document.createElement("div");
+          overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+          `;
+      
+          const modal = document.createElement('div');
+          modal.style.cssText = `
+            background: #2c2f33;
+            border-radius: 12px;
+            padding: 30px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            color: #ffffff;
+            transform: scale(0.9);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            position: relative;
+          `;
+      
+          const closeButton = document.createElement('button');
+          closeButton.innerHTML = '×';
+          closeButton.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #b9bbbe;
+            font-size: 30px;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            padding: 0;
+            line-height: 1;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+          `;
+          closeButton.addEventListener('mouseenter', () => {
+            closeButton.style.color = '#ffffff';
+            closeButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+          });
+          closeButton.addEventListener('mouseleave', () => {
+            closeButton.style.color = '#b9bbbe';
+            closeButton.style.backgroundColor = 'transparent';
+          });
+          closeButton.addEventListener('click', () => {
+            overlay.remove();
+          });
+      
+          const title = document.createElement('h2');
+          title.textContent = 'Sélection des pages à analyser';
+          title.style.cssText = `
+            color: #6064f4;
+            margin-bottom: 20px;
+            font-size: 20px;
+          `;
+      
+          const description = document.createElement('p');
+          const pageText = maxPages === 1 ? '1 page' : `${maxPages} pages`;
+          description.innerHTML = `Ce topic contient ${pageText}.<br><br>Sélectionnez la page de début et la page de fin.`;
+          description.style.cssText = `
+            color: #b9bbbe;
+            margin-bottom: 20px;
+            line-height: 1.5;
+          `;
+      
+          const startInput = document.createElement('input');
+          startInput.type = 'number';
+          startInput.min = 1;
+          startInput.max = maxPages;
+          startInput.value = 1;
+          startInput.style.cssText = `
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid #40444b;
+            border-radius: 8px;
+            background: #1e1f22;
+            color: #ffffff;
+            font-size: 16px;
+            text-align: center;
+          `;
+      
+          const endInput = document.createElement('input');
+          endInput.type = 'number';
+          endInput.min = 1;
+          endInput.max = maxPages;
+          endInput.value = maxPages;
+          endInput.style.cssText = `
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #40444b;
+            border-radius: 8px;
+            background: #1e1f22;
+            color: #ffffff;
+            font-size: 16px;
+            text-align: center;
+          `;      
 
-      const modal = document.createElement('div');
-      modal.style.cssText = `
-        background: #2c2f33;
-        border-radius: 12px;
-        padding: 30px;
-        width: 400px;
-        max-width: 90%;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-        text-align: center;
-        color: #ffffff;
-        transform: scale(0.9);
-        opacity: 0;
-        transition: transform 0.3s ease, opacity 0.3s ease;
-      `;
+          const startButton = document.createElement('button');
+          startButton.textContent = 'Commencer l\'analyse';
+          startButton.style.cssText = `
+            width: 100%;
+            padding: 12px;
+            background: #6064f4;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+          `;
+      
+          const updateStartButtonState = () => {
+            const startValue = parseInt(startInput.value, 10);
+            const endValue = parseInt(endInput.value, 10);
+            let isValid = true;
+            if (isNaN(startValue) || startValue < 1 || startValue > maxPages) {
+              isValid = false;
+            }
+            if (isNaN(endValue) || endValue < 1 || endValue > maxPages) {
+              isValid = false;
+            }
+            if (startValue > endValue) {
+              isValid = false;
+            }
+            startButton.disabled = !isValid;
+            if (!isValid) {
+              startButton.style.background = "#888888";
+              startButton.style.cursor = "not-allowed";
+            } else {
+              startButton.style.background = "#6064f4";
+              startButton.style.cursor = "pointer";
+            }
+          };
+      
+          startInput.addEventListener('input', updateStartButtonState);
+          endInput.addEventListener('input', updateStartButtonState);
+          updateStartButtonState();
+      
+          startButton.addEventListener('mouseenter', () => {
+            if (!startButton.disabled) {
+              startButton.style.background = '#4346ab';
+              startButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
+            }
+          });
+          
+          startButton.addEventListener('mouseleave', () => {
+            if (!startButton.disabled) {
+              startButton.style.background = '#6064f4';
+              startButton.style.boxShadow = 'none';
+              startButton.style.transform = 'scale(1)';
+            }
+          });
 
-      const closeButton = document.createElement('button');
-      closeButton.innerHTML = '&times;';
-      closeButton.style.cssText = `
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background: none;
-        border: none;
-        color: #b9bbbe;
-        font-size: 30px;
-        cursor: pointer;
-        transition: color 0.2s ease;
-        padding: 0;
-        line-height: 1;
-        width: 25px;
-        height: 25px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        border-radius: 50%;
-      `;
+          startButton.addEventListener('mousedown', () => {
+            if (!startButton.disabled) {
+              startButton.style.transform = 'scale(0.98)';
+              startButton.style.background = '#4346ab';
+              startButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+            }
+          });
 
-      closeButton.addEventListener('mouseenter', () => {
-        closeButton.style.color = '#ffffff';
-        closeButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
-      });
+          startButton.addEventListener('mouseup', () => {
+            if (!startButton.disabled) {
+              startButton.style.transform = 'scale(1)';
+              startButton.style.background = '#6064f4';
+              startButton.style.boxShadow = 'none';
+            }
+          });
+      
+          startButton.addEventListener('click', () => {
+            const startPage = Math.max(1, Math.min(parseInt(startInput.value, 10) || 1, maxPages));
+            const endPage = Math.max(startPage, Math.min(parseInt(endInput.value, 10) || maxPages, maxPages));
+            overlay.remove();
+            resolve({ startPage, endPage });
+          });
+      
+          modal.appendChild(closeButton);
+          modal.appendChild(title);
+          modal.appendChild(description);
+          modal.appendChild(document.createTextNode('Page de début :'));
+          modal.appendChild(startInput);
+          modal.appendChild(document.createTextNode('Page de fin :'));
+          modal.appendChild(endInput);
+          modal.appendChild(startButton);
+          overlay.appendChild(modal);
+          document.body.appendChild(overlay);
+      
+          requestAnimationFrame(() => {
+            modal.style.transform = 'scale(1)';
+            modal.style.opacity = '1';
+          });
+      
+          startInput.focus();
+      
+          window.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+              const startPage = Math.max(1, Math.min(parseInt(startInput.value, 10) || 1, maxPages));
+              const endPage = Math.max(startPage, Math.min(parseInt(endInput.value, 10) || maxPages, maxPages));
+              overlay.remove();
+              resolve({ startPage, endPage });
+            }
+            if (event.key === 'Escape') {
+              overlay.remove();
+            }
+          });
+        });
+    }
 
-      closeButton.addEventListener('mouseleave', () => {
-        closeButton.style.color = '#b9bbbe';
-        closeButton.style.backgroundColor = 'transparent';
-      });
-
-      closeButton.addEventListener('click', () => {
-        overlay.remove();
-        return;
-      });
-
-      const title = document.createElement('h2');
-      title.textContent = 'Sélection de la page de départ';
-      title.style.cssText = `
-        color: #6064f4;
-        margin-bottom: 20px;
-        font-size: 20px;
-      `;
-
-      const description = document.createElement('p');
-      const pageText = maxPages === 1 ? '1 page' : ` ${maxPages} pages`;
-      description.textContent = `Ce topic contient ${pageText}. À partir de quelle page souhaitez-vous commencer l'analyse ?`;
-      description.style.cssText = `
-        color: #b9bbbe;
-        margin-bottom: 20px;
-        line-height: 1.5;
-      `;
-
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.min = 1;
-      input.max = maxPages;
-      input.value = 1;
-      input.style.cssText = `
-        width: 100%;
-        padding: 12px;
-        margin-bottom: 20px;
-        border: 1px solid #40444b;
-        border-radius: 8px;
-        background: #1e1f22;
-        color: #ffffff;
-        font-size: 16px;
-        text-align: center;
-      `;
-
-      input.addEventListener('keydown', (event) => {
-        if (event.key === 'e' || event.key === 'E' || event.key === '+' || event.key === '-') {
-          event.preventDefault();
-        }
-      });
-
-      input.addEventListener('input', () => {
-        const value = parseInt(input.value, 10) || 1;
-        if (value > maxPages) {
-          input.value = maxPages;
-        } else if (value < 1) {
-          input.value = 1;
-        }
-      });
-
-      const startButton = document.createElement('button');
-      startButton.textContent = 'Commencer l\'analyse';
-      startButton.style.cssText = `
-        width: 100%;
-        padding: 12px;
-        background: #6064f4;
-        color: #ffffff;
-        border: none;
-        border-radius: 8px;
-        font-size: 16px;
-        cursor: pointer;
-        transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
-      `;
-
-      startButton.addEventListener('mouseenter', () => {
-        startButton.style.background = '#4346ab';
-        startButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
-      });
-
-      startButton.addEventListener('mouseleave', () => {
-        startButton.style.background = '#6064f4';
-        startButton.style.boxShadow = 'none';
-      });
-
-      startButton.addEventListener('mousedown', () => {
-        startButton.style.transform = 'scale(0.98)';
-        startButton.style.background = '#4346ab';
-        startButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-      });
-
-      startButton.addEventListener('mouseup', () => {
-        startButton.style.transform = 'scale(1)';
-        startButton.style.background = '#6064f4';
-        startButton.style.boxShadow = 'none';
-      });
-
-      startButton.addEventListener('click', () => {
-        const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
-        overlay.remove();
-        resolve(selectedPage);
-      });
-
-      modal.appendChild(closeButton);
-      modal.appendChild(title);
-      modal.appendChild(description);
-      modal.appendChild(input);
-      modal.appendChild(startButton);
-      overlay.appendChild(modal);
-      document.body.appendChild(overlay);
-
-      requestAnimationFrame(() => {
-        modal.style.transform = 'scale(1)';
-        modal.style.opacity = '1';
-      });
-
-      input.focus();
-
-      window.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-          const selectedPage = Math.max(1, Math.min(parseInt(input.value, 10) || 1, maxPages));
-          overlay.remove();
-          resolve(selectedPage);
-        }
-
-        if (event.key === 'Escape') {
-          overlay.remove();
-          return;
-        }
-      });
-    });
-  }
-
-    const userInput = await userPageInput();
-    currentPage = userInput;
+    const { startPage, endPage } = await userPageInput();
+    currentPage = startPage;
+    const analysisMaxPages = endPage;
 
     window.document.body.innerHTML = `
       <html>
@@ -272,6 +310,7 @@
         .controls { 
           margin-bottom: 20px; 
           text-align: center;
+          <button onclick="showTimelineChart()">Timeline</button>
         }
         button {
          font-family: Arial, sans-serif;
@@ -474,6 +513,7 @@
           <button onclick="pauseAnalysis()">Pause</button>
           <button onclick="resumeAnalysis()" class="disabled" disabled>Reprendre</button>
           <button onclick="copyResults()">Copier les résultats</button>
+          <button onclick="showTimelineChart()">Timeline</button>
         </div>
         <div class="progress-bar">
           <div class="fill"></div>
@@ -527,9 +567,7 @@
 
     pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true));
     resumeAnalysis = () => !isPendingRequest && isPaused && (isPaused = false, updateStatus("Analyse en cours..."), handlePage());
-    updateProgress = () => progressBar.style.width = window.document.querySelector(".progress-percentage").textContent = `${Math.min((currentPage / maxPages) * 100, 100).toFixed(0)}%`;
-
-
+    updateProgress = () => { const p = ((currentPage-startPage) / (analysisMaxPages-startPage+1)*100).toFixed(0); progressBar.style.width = `${p}%`; document.querySelector(".progress-percentage").textContent = `${p}%`;};
     copyResults = () => {
         try {
             const rows = window.document.querySelectorAll("#results tr");
@@ -565,7 +603,7 @@
 
         const pagesToProcess = [];
         const originalCurrentPage = currentPage;
-        for (let i = 0; i < 25 && currentPage <= maxPages; i++) {
+        for (let i = 0; i < 25 && currentPage <= analysisMaxPages; i++) {
             if (!analyzedPages.has(currentPage)) {
                 pagesToProcess.push(currentPage);
             }
@@ -573,7 +611,7 @@
         }
 
         if (pagesToProcess.length === 0) {
-            if (currentPage > maxPages) {
+            if (currentPage > analysisMaxPages) {
                 updateStatus("Analyse terminée.", "green bold", true);
                 showNotification("Analyse terminée ! Vous pouvez désormais interagir avec les pseudos en cliquant dessus.", "info", 10000);
                 updateSummary();
@@ -740,7 +778,7 @@
 
             const allRedirected = pagesProcessed === pagesToProcess.length && results.every((result) => result.status === "fulfilled" && result.value.success && result.value.redirected);
 
-            if (allRedirected && currentPage > maxPages) {
+            if (allRedirected && currentPage > analysisMaxPages) {
                 updateStatus("Analyse terminée.", "green bold", true);
                 showNotification("Analyse terminée ! Vous pouvez désormais interagir avec les pseudos en cliquant dessus.", "info", 10000);
                 updateSummary();
@@ -761,7 +799,7 @@
             } else if (failedPages.length > 0) {
                 currentPage = originalCurrentPage;
                 console.error("Échec malgré plusieurs tentatives pour les pages:", failedPages);
-                updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red bold", true);
+                updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red", true);
                 showNotification(`Erreur fatale sur ${failedPages.length} page(s) après 50 tentatives.`, "error", 30000000);
                 updateSummary();
                 return;
@@ -787,7 +825,7 @@
                 handlePage(attempt + 1);
             } else {
                 console.error("Échec malgré plusieurs tentatives.");
-                updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red bold", true);
+                updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red", true);
                 showNotification(`Erreur fatale : ${error.message}`, "error", 30000000);
                 updateSummary();
             }
@@ -821,7 +859,7 @@
             previousPositions.set(pseudo, position);
             row.innerHTML = `<td>${position} ${positionChange}</td><td>${pseudo}</td><td>${count} <span style="color: #b9bbbe; font-size: 0.72em;">(${percentage}%)</span></td>`;
 
-            if (currentPage > maxPages || isPaused) {
+            if (currentPage > analysisMaxPages || isPaused) {
                 row.addEventListener("click", (e) => {
                     if (e.target.tagName !== 'TD') return;
                     showUserActionMenu(pseudo, count, row);
@@ -1298,6 +1336,8 @@
                 await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
             }
 
+            const useThinBars = dates.length > 100;
+
             new Chart(canvas, {
                 type: 'bar',
                 data: {
@@ -1309,6 +1349,7 @@
                         borderColor: '#4346ab',
                         borderWidth: 1,
                         barPercentage: 0.9,
+                        ...(useThinBars ? { barThickness: 6, maxBarThickness: 10 } : {}),
                         categoryPercentage: 0.95
                     }]
                 },
@@ -1329,30 +1370,32 @@
                             ticks: {
                                 stepSize: 1,
                                 color: '#b9bbbe',
-                                font: {
-                                    size: 14
-                                }
+                                font: { size: 14 }
                             },
                             grid: {
                                 color: '#40444b'
                             },
                             title: {
-                                display: true,
+                                display: false,
                                 text: 'Nombre de messages',
                                 color: '#b9bbbe',
-                                font: {
-                                    size: 16
-                                }
+                                font: { size: 16 }
                             }
                         },
                         x: {
                             ticks: {
                                 color: '#b9bbbe',
-                                font: {
-                                    size: 14
-                                },
+                                font: { size: 14 },
                                 maxRotation: 45,
-                                minRotation: 45
+                                minRotation: 45,
+                                autoSkip: false,
+                                callback: function (value, index, ticks) {
+                                    const skipInterval = Math.ceil(ticks.length / 10);
+                                    if (index === 0 || index === ticks.length - 1) {
+                                        return this.getLabelForValue(value);
+                                    }
+                                    return (index % skipInterval === 0 ? this.getLabelForValue(value) : '');
+                                }
                             },
                             grid: {
                                 display: false
@@ -1366,9 +1409,7 @@
                         legend: {
                             labels: {
                                 color: '#b9bbbe',
-                                font: {
-                                    size: 16
-                                }
+                                font: { size: 16 }
                             }
                         },
                         title: {
@@ -1388,6 +1429,350 @@
         }
 
         window.addEventListener("keydown", (e) => e.key === "Escape" && overlay.remove());
+    }
+
+    async function showTimelineChart() {
+        const getTimelineData = () => {
+            const dayActivity = new Map();
+    
+            for (const stats of userStats.values()) {
+                for (const [dateStr, count] of stats.messageDates.entries()) {
+                    const day = dateStr.split(" à ")[0].trim();
+                    dayActivity.set(day, (dayActivity.get(day) || 0) + count);
+                }
+            }
+    
+            const sortedDays = [...dayActivity.entries()].sort((a, b) => {
+                const parseDate = d => {
+                    const [day, monthName, year] = d.split(" ");
+                    const monthMap = {
+                        'janvier': 0,
+                        'février': 1,
+                        'mars': 2,
+                        'avril': 3,
+                        'mai': 4,
+                        'juin': 5,
+                        'juillet': 6,
+                        'août': 7,
+                        'septembre': 8,
+                        'octobre': 9,
+                        'novembre': 10,
+                        'décembre': 11
+                    };
+                    return new Date(parseInt(year, 10), monthMap[monthName.toLowerCase()], parseInt(day, 10));
+                };
+                return parseDate(a[0]) - parseDate(b[0]);
+            });
+    
+            return {
+                labels: sortedDays.map(d => d[0]),
+                values: sortedDays.map(d => d[1])
+            };
+        };
+    
+        const data = getTimelineData();
+    
+        const overlay = document.createElement("div");
+        Object.assign(overlay.style, {
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            zIndex: "100",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+        });
+    
+        const chartContainer = document.createElement("div");
+        Object.assign(chartContainer.style, {
+            backgroundColor: "#2c2f33",
+            border: "1px solid #40444b",
+            borderRadius: "12px",
+            padding: "25px",
+            width: "850px",
+            maxWidth: "95%",
+            maxHeight: "90%",
+            overflowY: "auto",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
+            position: "relative",
+        });
+    
+        const title = document.createElement("h3");
+        title.textContent = "Activité du topic";
+        Object.assign(title.style, {
+            fontSize: "20px",
+            marginBottom: "20px",
+            textAlign: "center",
+            color: "#6064f4",
+            fontWeight: "600",
+        });
+    
+        const canvas = document.createElement("canvas");
+        Object.assign(canvas.style, {
+            maxHeight: "500px",
+            width: "100%",
+        });
+    
+        const closeButton = document.createElement("button");
+        closeButton.textContent = "Fermer";
+        Object.assign(closeButton.style, {
+            width: "98%",
+            padding: "12px",
+            backgroundColor: "#ff4d4d",
+            color: "#ffffff",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            marginTop: "20px",
+            fontSize: "16px",
+        });
+    
+        chartContainer.appendChild(title);
+        chartContainer.appendChild(canvas);
+        chartContainer.appendChild(closeButton);
+        overlay.appendChild(chartContainer);
+        document.body.appendChild(overlay);
+    
+        let timelineChart;
+        try {
+            if (typeof Chart === 'undefined') {
+                await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
+            }
+    
+            const useThinBars = data.labels.length > 100;
+    
+            timelineChart = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Messages par jour',
+                        data: data.values,
+                        backgroundColor: '#6064f4',
+                        borderColor: '#4346ab',
+                        ...(useThinBars ? { barThickness: 6, maxBarThickness: 10 } : {}),
+                        borderWidth: 1,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: (context) =>
+                                    ` ${context.raw} message${context.raw === 1 ? "" : "s"}`
+                            }
+                        },
+                        legend: {
+                            labels: {
+                                color: '#b9bbbe',
+                                font: { size: 16 }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#b9bbbe',
+                                font: { size: 12 },
+                                maxRotation: 45,
+                                minRotation: 45,
+                                autoSkip: false,
+                                callback: function (value, index, ticks) {
+                                    const skipInterval = Math.ceil(ticks.length / 10);
+                                    if (index === 0 || index === ticks.length - 1) {
+                                        return this.getLabelForValue(value);
+                                    }
+                                    return (index % skipInterval === 0 ? this.getLabelForValue(value) : '');
+                                }
+                            },
+                            grid: { color: '#40444b' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#b9bbbe', stepSize: 1 },
+                            grid: { color: '#40444b' }
+                        }
+                    },
+                    onClick: function (evt, activeElements) {
+                        if (activeElements.length > 0) {
+                            const index = activeElements[0].index;
+                            const selectedDate = this.data.labels[index];
+                            showDateDetails(selectedDate);
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Erreur lors du chargement de Chart.js.', error);
+            canvas.style.display = 'none';
+            const errorMessage = document.createElement('p');
+            errorMessage.textContent = 'Erreur : Impossible de charger le graphique.';
+            errorMessage.style.color = '#ff0000';
+            errorMessage.style.textAlign = 'center';
+            chartContainer.insertBefore(errorMessage, closeButton);
+        }
+    
+        const updateTimeline = () => {
+            const newData = getTimelineData();
+            if (timelineChart) {
+                timelineChart.data.labels = newData.labels;
+                timelineChart.data.datasets[0].data = newData.values;
+    
+                if (newData.labels.length > 100) {
+                    timelineChart.data.datasets[0].barThickness = 6;
+                    timelineChart.data.datasets[0].maxBarThickness = 10;
+                } else {
+                    timelineChart.data.datasets[0].barThickness = undefined;
+                    timelineChart.data.datasets[0].maxBarThickness = undefined;
+                }
+                timelineChart.update();
+            }
+        };
+    
+        const timelineInterval = setInterval(updateTimeline, 1000);
+    
+        closeButton.addEventListener("click", () => {
+            clearInterval(timelineInterval);
+            overlay.remove();
+        });
+    
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                clearInterval(timelineInterval);
+                overlay.remove();
+            }
+        });
+    }
+
+    window.showTimelineChart = showTimelineChart;
+
+    function showDateDetails(selectedDate) {
+        const detailsMap = new Map();
+        
+        userStats.forEach((stats, pseudo) => {
+          stats.messageDates.forEach((count, fullDate) => {
+            const dayPart = fullDate.split(" à ")[0].trim();
+            if (dayPart === selectedDate) {
+              detailsMap.set(pseudo, (detailsMap.get(pseudo) || 0) + count);
+            }
+          });
+        });
+      
+        const detailsData = Array.from(detailsMap.entries())
+          .map(([pseudo, count]) => ({ pseudo, count }))
+          .sort((a, b) => b.count - a.count);
+      
+        if (detailsData.length === 0) {
+          showNotification(`Aucun message du ${selectedDate}`, "warning", 3000);
+          return;
+        }
+      
+        const overlay = document.createElement("div");
+        Object.assign(overlay.style, {
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            zIndex: "150",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+        });
+      
+        const detailsContainer = document.createElement("div");
+        Object.assign(detailsContainer.style, {
+            backgroundColor: "#2c2f33",
+            border: "1px solid #40444b",
+            borderRadius: "12px",
+            padding: "20px",
+            width: "400px",
+            maxWidth: "90%",
+            maxHeight: "80%",
+            overflowY: "auto",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
+        });
+      
+        const header = document.createElement("h3");
+        header.textContent = `Détails du ${selectedDate}`;
+        header.style.color = "#6064f4";
+        header.style.textAlign = "center";
+        detailsContainer.appendChild(header);
+      
+        const table = document.createElement("table");
+        table.style.width = "100%";
+        table.style.borderCollapse = "collapse";
+        table.style.marginTop = "10px";
+      
+        const headerRow = document.createElement("tr");
+        const thPseudo = document.createElement("th");
+        thPseudo.textContent = "Pseudo";
+        thPseudo.style.border = "1px solid #40444b";
+        thPseudo.style.padding = "5px";
+        thPseudo.style.color = "#ffffff";
+      
+        const thCount = document.createElement("th");
+        thCount.textContent = "Messages";
+        thCount.style.border = "1px solid #40444b";
+        thCount.style.padding = "5px";
+        thCount.style.color = "#ffffff";
+      
+        headerRow.appendChild(thPseudo);
+        headerRow.appendChild(thCount);
+        table.appendChild(headerRow);
+      
+        detailsData.forEach(item => {
+          const row = document.createElement("tr");
+          const tdPseudo = document.createElement("td");
+          tdPseudo.textContent = item.pseudo;
+          tdPseudo.style.border = "1px solid #40444b";
+          tdPseudo.style.padding = "5px";
+          tdPseudo.style.color = "#ffffff";
+      
+          const tdCount = document.createElement("td");
+          tdCount.textContent = item.count;
+          tdCount.style.border = "1px solid #40444b";
+          tdCount.style.padding = "5px";
+          tdCount.style.color = "#ffffff";
+      
+          row.appendChild(tdPseudo);
+          row.appendChild(tdCount);
+          table.appendChild(row);
+        });
+      
+        detailsContainer.appendChild(table);
+      
+        const closeBtn = document.createElement("button");
+        closeBtn.textContent = "Fermer";
+        Object.assign(closeBtn.style, {
+            marginTop: "15px",
+            padding: "10px 20px",
+            backgroundColor: "#ff4d4d",
+            color: "#ffffff",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+            display: "block",
+            marginLeft: "auto",
+            marginRight: "auto"
+        });
+        closeBtn.addEventListener("click", () => overlay.remove());
+        detailsContainer.appendChild(closeBtn);
+      
+        overlay.appendChild(detailsContainer);
+        document.body.appendChild(overlay);
+      
+        window.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            overlay.remove();
+          }
+        });
     }
 
     function showFusionMenu(pseudo, count, container) {
@@ -1590,7 +1975,7 @@
         }
 
         const totalTime = Date.now() - startTime;
-        const pagesRemaining = currentPage <= maxPages ? maxPages - currentPage + 1 : 0;
+        const pagesRemaining = currentPage <= analysisMaxPages ? analysisMaxPages - currentPage + 1 : 0;
         const summary =
             `<div class="topic-title bold">Topic : ${topicTitle}</div>\n` +
             "Total de messages analysés : " + totalMessages + "<br>\n" +

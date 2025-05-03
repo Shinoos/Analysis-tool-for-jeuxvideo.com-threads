@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.5.0";
+    const scriptVersion = "v1.5.1";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -505,6 +505,44 @@
         .stats-value {
           font-weight: bold;
         }
+        .settings-icon {
+        position: fixed;
+        bottom: 10px;
+        left: 50px;
+        font-size: 24px;
+        color: #b9bbbe;
+        cursor: pointer;
+        z-index: 1000;
+        transition: color 0.2s ease;
+        }
+        .settings-icon:hover {
+        color: #ffffff;
+        }
+        .settings-menu {
+        position: fixed;
+        bottom: 50px;
+        left: 50px;
+        background: #2c2f33;
+        border: 1px solid #40444b;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        display: none;
+        color: #ffffff;
+        font-family: Arial, sans-serif;
+        }
+        .settings-menu.show {
+        display: block;
+        }
+        .settings-menu label {
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        }
+        .settings-menu input[type="checkbox"] {
+        margin-right: 10px;
+        }
       </style>
     </head>
     <body>
@@ -538,6 +576,13 @@
         <div class="notification-container"></div>
         <div class="version">${scriptVersion}</div>
       </div>
+      <div class="settings-icon" onclick="toggleSettingsMenu()">⚙️</div>
+        <div class="settings-menu" id="settings-menu">
+        <label>
+        <input type="checkbox" id="copy-all-user-data">
+        Copier les données supplémentaires
+        </label>
+        </div>
     </body>
     </html>`;
 
@@ -546,6 +591,23 @@
     const resultsTable = window.document.querySelector("#results");
     const statusElement = window.document.querySelector("#status");
     const notificationContainer = window.document.querySelector(".notification-container");
+
+    function toggleSettingsMenu() {
+        const settingsMenu = document.querySelector("#settings-menu");
+        settingsMenu.classList.toggle("show");
+    }
+    window.toggleSettingsMenu = toggleSettingsMenu;
+
+    document.addEventListener('click', (event) => {
+        const settingsMenu = document.querySelector('#settings-menu');
+        const settingsIcon = document.querySelector('.settings-icon');
+        
+        if (!settingsIcon.contains(event.target) && !settingsMenu.contains(event.target)) {
+            if (settingsMenu.classList.contains('show')) {
+                settingsMenu.classList.remove('show');
+            }
+        }
+    });
 
     function showNotification(message, type = 'info', duration = 3000) {
         const notification = document.createElement('div');
@@ -571,12 +633,117 @@
     copyResults = () => {
         try {
             const rows = window.document.querySelectorAll("#results tr");
+            const copyAllUserData = document.querySelector("#copy-all-user-data").checked;
             let resultsText = window.document.querySelector("#summary").textContent + "\n\n";
+    
             rows.forEach(row => {
                 const cells = row.querySelectorAll("td");
-                if (cells.length >= 3)
-                    resultsText += `#${cells[0]?.textContent.split(' ')[0] || "?"} : ${cells[1]?.textContent || "?"} -> ${parseInt(cells[2]?.textContent) || 0} ${parseInt(cells[2]?.textContent) === 1 ? "message" : "messages"}\n`;
+                if (cells.length >= 3) {
+                    const position = cells[0]?.textContent.split(' ')[0] || "?";
+                    const pseudo = cells[1]?.textContent || "?";
+                    const messageCount = parseInt(cells[2]?.textContent) || 0;
+                    resultsText += `#${position} : ${pseudo} -> ${messageCount} ${messageCount === 1 ? "message" : "messages"}\n`;
+    
+                    if (copyAllUserData) {
+                        const stats = userStats.get(pseudo) || {
+                            totalChars: 0,
+                            messageCount: 0,
+                            averageChars: 0,
+                            stickerCount: 0,
+                            smileyCount: 0,
+                            messageDates: new Map()
+                        };
+    
+                        const messagesByDay = new Map();
+                        for (const [dateStr, count] of stats.messageDates) {
+                            const dayPart = dateStr.split(' à ')[0].trim();
+                            messagesByDay.set(dayPart, (messagesByDay.get(dayPart) || 0) + count);
+                        }
+    
+                        let mostActiveDay = 'Aucun';
+                        let maxMessages = 0;
+                        for (const [date, count] of messagesByDay) {
+                            if (count > maxMessages) {
+                                maxMessages = count;
+                                mostActiveDay = date;
+                            }
+                        }
+    
+                        const activeDays = messagesByDay.size;
+                        const messagePerActiveDay = activeDays > 0 ? Math.round(stats.messageCount / activeDays) : 0;
+    
+                        let averageInterval = "N/A";
+                        if (stats.messageCount > 1) {
+                            const monthMap = {
+                                'janvier': 0,
+                                'février': 1,
+                                'mars': 2,
+                                'avril': 3,
+                                'mai': 4,
+                                'juin': 5,
+                                'juillet': 6,
+                                'août': 7,
+                                'septembre': 8,
+                                'octobre': 9,
+                                'novembre': 10,
+                                'décembre': 11
+                            };
+    
+                            let allTimestamps = [];
+                            for (const [dateStr, count] of stats.messageDates.entries()) {
+                                const parts = dateStr.trim().split(/\s+/);
+                                if (parts.length < 3) continue;
+                                const day = parseInt(parts[0], 10);
+                                const month = monthMap[parts[1].toLowerCase()];
+                                const year = parseInt(parts[2], 10);
+                                let hour = 0, minute = 0, second = 0;
+                                if (parts.length >= 5) {
+                                    const timeParts = parts[4].split(":");
+                                    hour = parseInt(timeParts[0], 10) || 0;
+                                    minute = parseInt(timeParts[1], 10) || 0;
+                                    second = parseInt(timeParts[2], 10) || 0;
+                                }
+                                const timestamp = new Date(year, month, day, hour, minute, second).getTime();
+                                for (let i = 0; i < count; i++) {
+                                    allTimestamps.push(timestamp);
+                                }
+                            }
+    
+                            if (allTimestamps.length > 1) {
+                                allTimestamps.sort((a, b) => a - b);
+                                let totalDiff = 0;
+                                for (let i = 1; i < allTimestamps.length; i++) {
+                                    totalDiff += allTimestamps[i] - allTimestamps[i - 1];
+                                }
+                                const avgDiff = totalDiff / (allTimestamps.length - 1);
+    
+                                let remaining = Math.floor(avgDiff / 1000);
+                                const days = Math.floor(remaining / 86400);
+                                remaining %= 86400;
+                                const hours = Math.floor(remaining / 3600);
+                                remaining %= 3600;
+                                const minutes = Math.floor(remaining / 60);
+                                const seconds = remaining % 60;
+    
+                                averageInterval = (
+                                    (days ? days + "j " : "") +
+                                    (hours ? hours + "h " : "") +
+                                    (minutes ? minutes + "m " : "") +
+                                    (seconds ? seconds + "s" : "")
+                                ).trim() || "0s";
+                            }
+                        }
+    
+                        resultsText += `Moy. caractères/message: ${stats.averageChars || 0}\n`;
+                        resultsText += `Moy. de messages par jour: ${messagePerActiveDay}\n`;
+                        resultsText += `Temps moy. entre deux messages: ${averageInterval}\n`;
+                        resultsText += `Stickers postés: ${stats.stickerCount || 0}\n`;
+                        resultsText += `Smileys postés: ${stats.smileyCount || 0}\n`;
+                        resultsText += `Jour le plus actif: ${mostActiveDay.split(' à ')[0]} (${maxMessages} messages)\n\n`;
+                    }
+                }
             });
+    
             navigator.clipboard.writeText(resultsText.replace(/Pages restantes.*\n|Analyse terminée.\n/, ''))
                 .then(() => showNotification("Résultats copiés dans le presse-papiers !", "success"))
                 .catch(err => {

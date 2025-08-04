@@ -2,13 +2,14 @@
 // @name         Analysis-tool-for-jeuxvideo.com-threads
 // @description  Analysis tool designed to calculate the number of posts made by users in a thread
 // @author       Shinoos
-// @version      1.0.4
+// @version      1.0.5
 // @connect      raw.githubusercontent.com
 // @connect      cdn.jsdelivr.net
 // @updateURL    https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/userscript.user.js
 // @downloadURL  https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/userscript.user.js
 // @match        https://www.jeuxvideo.com/forums/42*
 // @match        https://www.jeuxvideo.com/forums/1*
+// @grant        GM.xmlhttpRequest
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // ==/UserScript==
@@ -16,8 +17,9 @@
 (function() {
     'use strict';
 
-    const forumRightCol = document.querySelector("#forum-right-col");
+    const GMxhr = (typeof GM !== 'undefined' && GM.xmlhttpRequest) ? GM.xmlhttpRequest : (typeof GM_xmlhttpRequest !== 'undefined' ? GM_xmlhttpRequest : null);
 
+    const forumRightCol = document.querySelector("#forum-right-col");
     if (!forumRightCol) return;
 
     const buttonDiv = document.createElement('div');
@@ -61,7 +63,7 @@
     });
 
     function executeAnalysisScript() {
-        GM_xmlhttpRequest({
+        GMxhr({
             method: "GET",
             url: "https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/Analysis-tool-thread.js",
             onload: function(response) {

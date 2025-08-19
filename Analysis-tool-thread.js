@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.5.3";
+    const scriptVersion = "v1.5.4";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -11,15 +11,22 @@
     const analyzedPages = new Set();
     const previousPositions = new Map();
     const userStats = new Map();
-    const maxPages = (() => { const p = document.querySelector(".bloc-liste-num-page"); if(!p) return 1; const l = p.querySelectorAll("a.xXx.lien-jv"); if(!l.length) return 1; const i = l.length>11?l.length-2:l.length-1; return parseInt(l[i].textContent,10)||1; })();
+    const maxPages = (() => {
+        const p = document.querySelector(".bloc-liste-num-page");
+        if (!p) return 1;
+        const l = p.querySelectorAll("a.xXx.lien-jv");
+        if (!l.length) return 1;
+        const i = l.length > 11 ? l.length - 2 : l.length - 1;
+        return parseInt(l[i].textContent, 10) || 1;
+    })();
     const startTime = Date.now();
     const topicTitleElement = document.querySelector("#bloc-title-forum");
     const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
 
     function userPageInput() {
         return new Promise((resolve) => {
-        const overlay = document.createElement("div");
-        overlay.style.cssText = `
+            const overlay = document.createElement("div");
+            overlay.style.cssText = `
             position: fixed;
             top: 0;
             left: 0;
@@ -32,9 +39,9 @@
             z-index: 1000;
             font-family: Arial, sans-serif;
         `;
-    
-        const modal = document.createElement('div');
-        modal.style.cssText = `
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
             background: #2c2f33;
             border-radius: 12px;
             padding: 30px;
@@ -48,10 +55,10 @@
             transition: transform 0.3s ease, opacity 0.3s ease;
             position: relative;
         `;
-    
-        const closeButton = document.createElement('button');
-        closeButton.innerHTML = '×';
-        closeButton.style.cssText = `
+
+            const closeButton = document.createElement('button');
+            closeButton.innerHTML = '×';
+            closeButton.style.cssText = `
             position: absolute;
             top: 10px;
             right: 10px;
@@ -70,41 +77,41 @@
             align-items: center;
             border-radius: 50%;
         `;
-        closeButton.addEventListener('mouseenter', () => {
-            closeButton.style.color = '#ffffff';
-            closeButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        });
-        closeButton.addEventListener('mouseleave', () => {
-            closeButton.style.color = '#b9bbbe';
-            closeButton.style.backgroundColor = 'transparent';
-        });
-        closeButton.addEventListener('click', () => {
-            overlay.remove();
-        });
-    
-        const title = document.createElement('h2');
-        title.textContent = 'Sélection des pages à analyser';
-        title.style.cssText = `
+            closeButton.addEventListener('mouseenter', () => {
+                closeButton.style.color = '#ffffff';
+                closeButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+            });
+            closeButton.addEventListener('mouseleave', () => {
+                closeButton.style.color = '#b9bbbe';
+                closeButton.style.backgroundColor = 'transparent';
+            });
+            closeButton.addEventListener('click', () => {
+                overlay.remove();
+            });
+
+            const title = document.createElement('h2');
+            title.textContent = 'Sélection des pages à analyser';
+            title.style.cssText = `
             color: #6064f4;
             margin-bottom: 20px;
             font-size: 20px;
         `;
-    
-        const description = document.createElement('p');
-        const pageText = maxPages === 1 ? '1 page' : `${maxPages} pages`;
-        description.innerHTML = `Ce topic contient ${pageText}.<br><br>Sélectionnez la page de début et la page de fin.`;
-        description.style.cssText = `
+
+            const description = document.createElement('p');
+            const pageText = maxPages === 1 ? '1 page' : `${maxPages} pages`;
+            description.innerHTML = `Ce topic contient ${pageText}.<br><br>Sélectionnez la page de début et la page de fin.`;
+            description.style.cssText = `
             color: #b9bbbe;
             margin-bottom: 20px;
             line-height: 1.5;
         `;
-    
-        const startInput = document.createElement('input');
-        startInput.type = 'number';
-        startInput.min = 1;
-        startInput.max = maxPages;
-        startInput.value = 1;
-        startInput.style.cssText = `
+
+            const startInput = document.createElement('input');
+            startInput.type = 'number';
+            startInput.min = 1;
+            startInput.max = maxPages;
+            startInput.value = 1;
+            startInput.style.cssText = `
             width: 100%;
             padding: 12px;
             margin-bottom: 10px;
@@ -115,13 +122,13 @@
             font-size: 16px;
             text-align: center;
         `;
-    
-        const endInput = document.createElement('input');
-        endInput.type = 'number';
-        endInput.min = 1;
-        endInput.max = maxPages;
-        endInput.value = maxPages;
-        endInput.style.cssText = `
+
+            const endInput = document.createElement('input');
+            endInput.type = 'number';
+            endInput.min = 1;
+            endInput.max = maxPages;
+            endInput.value = maxPages;
+            endInput.style.cssText = `
             width: 100%;
             padding: 12px;
             margin-bottom: 20px;
@@ -131,11 +138,11 @@
             color: #ffffff;
             font-size: 16px;
             text-align: center;
-        `;      
+        `;
 
-        const startButton = document.createElement('button');
-        startButton.textContent = 'Commencer l\'analyse';
-        startButton.style.cssText = `
+            const startButton = document.createElement('button');
+            startButton.textContent = 'Commencer l\'analyse';
+            startButton.style.cssText = `
             width: 100%;
             padding: 12px;
             background: #6064f4;
@@ -146,105 +153,114 @@
             cursor: pointer;
             transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
         `;
-    
-        const updateStartButtonState = () => {
-            const startValue = parseInt(startInput.value, 10);
-            const endValue = parseInt(endInput.value, 10);
-            let isValid = true;
-            if (isNaN(startValue) || startValue < 1 || startValue > maxPages) {
-            isValid = false;
-            }
-            if (isNaN(endValue) || endValue < 1 || endValue > maxPages) {
-            isValid = false;
-            }
-            if (startValue > endValue) {
-            isValid = false;
-            }
-            startButton.disabled = !isValid;
-            if (!isValid) {
-            startButton.style.background = "#888888";
-            startButton.style.cursor = "not-allowed";
-            } else {
-            startButton.style.background = "#6064f4";
-            startButton.style.cursor = "pointer";
-            }
-        };
-    
-        startInput.addEventListener('input', updateStartButtonState);
-        endInput.addEventListener('input', updateStartButtonState);
-        updateStartButtonState();
-    
-        startButton.addEventListener('mouseenter', () => {
-            if (!startButton.disabled) {
-            startButton.style.background = '#4346ab';
-            startButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
-            }
-        });
-        
-        startButton.addEventListener('mouseleave', () => {
-            if (!startButton.disabled) {
-            startButton.style.background = '#6064f4';
-            startButton.style.boxShadow = 'none';
-            startButton.style.transform = 'scale(1)';
-            }
-        });
 
-        startButton.addEventListener('mousedown', () => {
-            if (!startButton.disabled) {
-            startButton.style.transform = 'scale(0.98)';
-            startButton.style.background = '#4346ab';
-            startButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-            }
-        });
+            const updateStartButtonState = () => {
+                const startValue = parseInt(startInput.value, 10);
+                const endValue = parseInt(endInput.value, 10);
+                let isValid = true;
+                if (isNaN(startValue) || startValue < 1 || startValue > maxPages) {
+                    isValid = false;
+                }
+                if (isNaN(endValue) || endValue < 1 || endValue > maxPages) {
+                    isValid = false;
+                }
+                if (startValue > endValue) {
+                    isValid = false;
+                }
+                startButton.disabled = !isValid;
+                if (!isValid) {
+                    startButton.style.background = "#888888";
+                    startButton.style.cursor = "not-allowed";
+                } else {
+                    startButton.style.background = "#6064f4";
+                    startButton.style.cursor = "pointer";
+                }
+            };
 
-        startButton.addEventListener('mouseup', () => {
-            if (!startButton.disabled) {
-            startButton.style.transform = 'scale(1)';
-            startButton.style.background = '#6064f4';
-            startButton.style.boxShadow = 'none';
-            }
-        });
-    
-        startButton.addEventListener('click', () => {
-            const startPage = Math.max(1, Math.min(parseInt(startInput.value, 10) || 1, maxPages));
-            const endPage = Math.max(startPage, Math.min(parseInt(endInput.value, 10) || maxPages, maxPages));
-            overlay.remove();
-            resolve({ startPage, endPage });
-        });
-    
-        modal.appendChild(closeButton);
-        modal.appendChild(title);
-        modal.appendChild(description);
-        modal.appendChild(document.createTextNode('Page de début :'));
-        modal.appendChild(startInput);
-        modal.appendChild(document.createTextNode('Page de fin :'));
-        modal.appendChild(endInput);
-        modal.appendChild(startButton);
-        overlay.appendChild(modal);
-        document.body.appendChild(overlay);
-    
-        requestAnimationFrame(() => {
-            modal.style.transform = 'scale(1)';
-            modal.style.opacity = '1';
-        });
-    
-        startInput.focus();
-    
-        window.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-            const startPage = Math.max(1, Math.min(parseInt(startInput.value, 10) || 1, maxPages));
-            const endPage = Math.max(startPage, Math.min(parseInt(endInput.value, 10) || maxPages, maxPages));
-            overlay.remove();
-            resolve({ startPage, endPage });
-            }
-            if (event.key === 'Escape') {
-            overlay.remove();
-            }
-        });
+            startInput.addEventListener('input', updateStartButtonState);
+            endInput.addEventListener('input', updateStartButtonState);
+            updateStartButtonState();
+
+            startButton.addEventListener('mouseenter', () => {
+                if (!startButton.disabled) {
+                    startButton.style.background = '#4346ab';
+                    startButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
+                }
+            });
+
+            startButton.addEventListener('mouseleave', () => {
+                if (!startButton.disabled) {
+                    startButton.style.background = '#6064f4';
+                    startButton.style.boxShadow = 'none';
+                    startButton.style.transform = 'scale(1)';
+                }
+            });
+
+            startButton.addEventListener('mousedown', () => {
+                if (!startButton.disabled) {
+                    startButton.style.transform = 'scale(0.98)';
+                    startButton.style.background = '#4346ab';
+                    startButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+                }
+            });
+
+            startButton.addEventListener('mouseup', () => {
+                if (!startButton.disabled) {
+                    startButton.style.transform = 'scale(1)';
+                    startButton.style.background = '#6064f4';
+                    startButton.style.boxShadow = 'none';
+                }
+            });
+
+            startButton.addEventListener('click', () => {
+                const startPage = Math.max(1, Math.min(parseInt(startInput.value, 10) || 1, maxPages));
+                const endPage = Math.max(startPage, Math.min(parseInt(endInput.value, 10) || maxPages, maxPages));
+                overlay.remove();
+                resolve({
+                    startPage,
+                    endPage
+                });
+            });
+
+            modal.appendChild(closeButton);
+            modal.appendChild(title);
+            modal.appendChild(description);
+            modal.appendChild(document.createTextNode('Page de début :'));
+            modal.appendChild(startInput);
+            modal.appendChild(document.createTextNode('Page de fin :'));
+            modal.appendChild(endInput);
+            modal.appendChild(startButton);
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            requestAnimationFrame(() => {
+                modal.style.transform = 'scale(1)';
+                modal.style.opacity = '1';
+            });
+
+            startInput.focus();
+
+            window.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    const startPage = Math.max(1, Math.min(parseInt(startInput.value, 10) || 1, maxPages));
+                    const endPage = Math.max(startPage, Math.min(parseInt(endInput.value, 10) || maxPages, maxPages));
+                    overlay.remove();
+                    resolve({
+                        startPage,
+                        endPage
+                    });
+                }
+                if (event.key === 'Escape') {
+                    overlay.remove();
+                }
+            });
         });
     }
 
-    const { startPage, endPage } = await userPageInput();
+    const {
+        startPage,
+        endPage
+    } = await userPageInput();
     currentPage = startPage;
     const analysisMaxPages = endPage;
 
@@ -770,7 +786,7 @@
     document.addEventListener('click', (event) => {
         const settingsMenu = document.querySelector('#settings-menu');
         const settingsIcon = document.querySelector('.settings-icon');
-        
+
         if (!settingsIcon.contains(event.target) && !settingsMenu.contains(event.target)) {
             if (settingsMenu.classList.contains('show')) {
                 settingsMenu.classList.remove('show');
@@ -807,9 +823,9 @@
         if (currentPage > startPage) {
             const pagesProcessed = currentPage - startPage;
             const averageTimePerPage = elapsedTime / pagesProcessed;
-            const pagesRemaining = analysisMaxPages - currentPage + 1;        
+            const pagesRemaining = analysisMaxPages - currentPage + 1;
             const timeRemaining = pagesRemaining * averageTimePerPage;
-    
+
             if (timeRemaining > 0) {
                 if (timeRemaining < 60) {
                     timeRemainingText = `durée restante estimée : ${Math.round(timeRemaining)}s`;
@@ -826,13 +842,13 @@
         }
         document.querySelector(".progress-percentage").textContent = `${progress}% ${timeRemainingText}`;
     };
-    
+
     copyResults = () => {
         try {
             const rows = window.document.querySelectorAll("#results tr");
             const copyAllUserData = document.querySelector("#copy-all-user-data").checked;
             let resultsText = window.document.querySelector("#summary").textContent + "\n\n";
-    
+
             rows.forEach(row => {
                 const cells = row.querySelectorAll("td");
                 if (cells.length >= 3) {
@@ -840,7 +856,7 @@
                     const pseudo = cells[1]?.textContent || "?";
                     const messageCount = parseInt(cells[2]?.textContent) || 0;
                     resultsText += `#${position} : ${pseudo} -> ${messageCount} ${messageCount === 1 ? "message" : "messages"}\n`;
-    
+
                     if (copyAllUserData) {
                         const stats = userStats.get(pseudo) || {
                             totalChars: 0,
@@ -850,13 +866,13 @@
                             smileyCount: 0,
                             messageDates: new Map()
                         };
-    
+
                         const messagesByDay = new Map();
                         for (const [dateStr, count] of stats.messageDates) {
                             const dayPart = dateStr.split(' à ')[0].trim();
                             messagesByDay.set(dayPart, (messagesByDay.get(dayPart) || 0) + count);
                         }
-    
+
                         let mostActiveDay = 'Aucun';
                         let maxMessages = 0;
                         for (const [date, count] of messagesByDay) {
@@ -865,14 +881,27 @@
                                 mostActiveDay = date;
                             }
                         }
-    
+
                         const activeDays = messagesByDay.size;
                         const messagePerActiveDay = activeDays > 0 ? Math.round(stats.messageCount / activeDays) : 0;
-    
+
                         let averageInterval = "N/A";
                         if (stats.messageCount > 1) {
-                            const monthMap = { 'janvier': 0, 'février': 1, 'mars': 2, 'avril': 3, 'mai': 4, 'juin': 5, 'juillet': 6, 'août': 7, 'septembre': 8, 'octobre': 9, 'novembre': 10, 'décembre': 11 };
-    
+                            const monthMap = {
+                                'janvier': 0,
+                                'février': 1,
+                                'mars': 2,
+                                'avril': 3,
+                                'mai': 4,
+                                'juin': 5,
+                                'juillet': 6,
+                                'août': 7,
+                                'septembre': 8,
+                                'octobre': 9,
+                                'novembre': 10,
+                                'décembre': 11
+                            };
+
                             let allTimestamps = [];
                             for (const [dateStr, count] of stats.messageDates.entries()) {
                                 const parts = dateStr.trim().split(/\s+/);
@@ -880,7 +909,9 @@
                                 const day = parseInt(parts[0], 10);
                                 const month = monthMap[parts[1].toLowerCase()];
                                 const year = parseInt(parts[2], 10);
-                                let hour = 0, minute = 0, second = 0;
+                                let hour = 0,
+                                    minute = 0,
+                                    second = 0;
                                 if (parts.length >= 5) {
                                     const timeParts = parts[4].split(":");
                                     hour = parseInt(timeParts[0], 10) || 0;
@@ -892,7 +923,7 @@
                                     allTimestamps.push(timestamp);
                                 }
                             }
-    
+
                             if (allTimestamps.length > 1) {
                                 allTimestamps.sort((a, b) => a - b);
                                 let totalDiff = 0;
@@ -900,7 +931,7 @@
                                     totalDiff += allTimestamps[i] - allTimestamps[i - 1];
                                 }
                                 const avgDiff = totalDiff / (allTimestamps.length - 1);
-    
+
                                 let remaining = Math.floor(avgDiff / 1000);
                                 const days = Math.floor(remaining / 86400);
                                 remaining %= 86400;
@@ -908,7 +939,7 @@
                                 remaining %= 3600;
                                 const minutes = Math.floor(remaining / 60);
                                 const seconds = remaining % 60;
-    
+
                                 averageInterval = (
                                     (days ? days + "j " : "") +
                                     (hours ? hours + "h " : "") +
@@ -917,7 +948,7 @@
                                 ).trim() || "0s";
                             }
                         }
-    
+
                         resultsText += `Moy. caractères/message: ${stats.averageChars || 0}\n`;
                         resultsText += `Moy. de messages par jour: ${messagePerActiveDay}\n`;
                         resultsText += `Temps moy. entre deux messages: ${averageInterval}\n`;
@@ -927,7 +958,7 @@
                     }
                 }
             });
-    
+
             navigator.clipboard.writeText(resultsText.replace(/Pages restantes.*\n|Analyse terminée.\n/, ''))
                 .then(() => showNotification("Résultats copiés dans le presse-papiers !", "success"))
                 .catch(err => {
@@ -1031,6 +1062,7 @@
                                 if (messageContent) {
                                     const tempDiv = document.createElement('div');
                                     tempDiv.innerHTML = messageContent.innerHTML;
+                                    tempDiv.querySelectorAll('blockquote').forEach(bq => bq.remove());
 
                                     const stickerRegex = /https?:\/\/(?:www\.)?(noelshack\.com|image\.noelshack\.com)\/.*\.(png|jpe?g|gif)$/i;
                                     const smileyRegex = /https?:\/\/(?:www\.)?(?:jeuxvideo\.com|image.jeuxvideo\.com)\/smileys_img\/.*\.(png|jpe?g|gif)$/i;
@@ -1039,8 +1071,6 @@
 
                                     const imgElements = tempDiv.querySelectorAll('img');
                                     imgElements.forEach(img => {
-                                        if (img.closest('blockquote')) return;
-
                                         const src = img.getAttribute('src');
 
                                         if (src && (stickerRegex.test(src) || src.includes("image.jeuxvideo.com/stickers"))) {
@@ -1194,17 +1224,19 @@
             let previousPosition = previousPositions.get(pseudo);
             let percentage = ((count / totalMessages) * 100).toFixed(1);
 
-            switch (true) {
-                case typeof previousPosition !== "undefined" && position < previousPosition:
-                    positionChange = `<span class="green">⇧ ${previousPosition - position}</span>`;
-                    break;
+            if (currentPage <= analysisMaxPages && !isPaused) {
+                switch (true) {
+                    case typeof previousPosition !== "undefined" && position < previousPosition:
+                        positionChange = `<span class="green">⇧ ${previousPosition - position}</span>`;
+                        break;
 
-                case typeof previousPosition !== "undefined" && position > previousPosition:
-                    positionChange = `<span class="red">⇩ ${position - previousPosition}</span>`;
-                    break;
+                    case typeof previousPosition !== "undefined" && position > previousPosition:
+                        positionChange = `<span class="red">⇩ ${position - previousPosition}</span>`;
+                        break;
 
-                default:
-                    positionChange = "";
+                    default:
+                        positionChange = "";
+                }
             }
 
             previousPositions.set(pseudo, position);
@@ -1238,16 +1270,16 @@
     function calculateSimilarity(str1, str2) {
         str1 = str1.toLowerCase();
         str2 = str2.toLowerCase();
-    
+
         if (str1 === str2) return 1;
-    
+
         const len1 = str1.length;
         const len2 = str2.length;
         const matrix = Array(len2 + 1).fill().map(() => Array(len1 + 1).fill(0));
-    
+
         for (let i = 0; i <= len1; i++) matrix[0][i] = i;
         for (let j = 0; j <= len2; j++) matrix[j][0] = j;
-    
+
         for (let j = 1; j <= len2; j++) {
             for (let i = 1; i <= len1; i++) {
                 const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
@@ -1258,7 +1290,7 @@
                 );
             }
         }
-    
+
         const distance = matrix[len2][len1];
         const maxLen = Math.max(len1, len2);
         return 1 - distance / maxLen;
@@ -1458,8 +1490,8 @@
 
         const messagesByDay = new Map();
         for (const [dateStr, count] of stats.messageDates) {
-        const dayPart = dateStr.split(' à ')[0].trim();
-        messagesByDay.set(dayPart, (messagesByDay.get(dayPart) || 0) + count);
+            const dayPart = dateStr.split(' à ')[0].trim();
+            messagesByDay.set(dayPart, (messagesByDay.get(dayPart) || 0) + count);
         }
 
         let mostActiveDay = 'Aucun';
@@ -1480,7 +1512,20 @@
 
         let averageInterval = "N/A";
         if (stats.messageCount > 1) {
-            const monthMap = { 'janvier': 0, 'février': 1, 'mars': 2, 'avril': 3, 'mai': 4, 'juin': 5, 'juillet': 6, 'août': 7, 'septembre': 8, 'octobre': 9, 'novembre': 10, 'décembre': 11 };
+            const monthMap = {
+                'janvier': 0,
+                'février': 1,
+                'mars': 2,
+                'avril': 3,
+                'mai': 4,
+                'juin': 5,
+                'juillet': 6,
+                'août': 7,
+                'septembre': 8,
+                'octobre': 9,
+                'novembre': 10,
+                'décembre': 11
+            };
 
             let allTimestamps = [];
             for (const [dateStr, count] of stats.messageDates.entries()) {
@@ -1489,16 +1534,18 @@
                 const day = parseInt(parts[0], 10);
                 const month = monthMap[parts[1].toLowerCase()];
                 const year = parseInt(parts[2], 10);
-                let hour = 0, minute = 0, second = 0;
+                let hour = 0,
+                    minute = 0,
+                    second = 0;
                 if (parts.length >= 5) {
-                const timeParts = parts[4].split(":");
-                hour = parseInt(timeParts[0], 10) || 0;
-                minute = parseInt(timeParts[1], 10) || 0;
-                second = parseInt(timeParts[2], 10) || 0;
+                    const timeParts = parts[4].split(":");
+                    hour = parseInt(timeParts[0], 10) || 0;
+                    minute = parseInt(timeParts[1], 10) || 0;
+                    second = parseInt(timeParts[2], 10) || 0;
                 }
                 const timestamp = new Date(year, month, day, hour, minute, second).getTime();
                 for (let i = 0; i < count; i++) {
-                allTimestamps.push(timestamp);
+                    allTimestamps.push(timestamp);
                 }
             }
 
@@ -1519,10 +1566,10 @@
                 const seconds = remaining % 60;
 
                 averageInterval = (
-                (days ? days + "j " : "") +
-                (hours ? hours + "h " : "") +
-                (minutes ? minutes + "m " : "") +
-                (seconds ? seconds + "s" : "")
+                    (days ? days + "j " : "") +
+                    (hours ? hours + "h " : "") +
+                    (minutes ? minutes + "m " : "") +
+                    (seconds ? seconds + "s" : "")
                 ).trim() || "0s";
             }
         }
@@ -1580,12 +1627,25 @@
 
         const messagesByDay = new Map();
         for (const [dateStr, count] of stats.messageDates) {
-        const dayPart = dateStr.split(' à ')[0].trim();
-        messagesByDay.set(dayPart, (messagesByDay.get(dayPart) || 0) + count);
+            const dayPart = dateStr.split(' à ')[0].trim();
+            messagesByDay.set(dayPart, (messagesByDay.get(dayPart) || 0) + count);
         }
 
         const dates = [...messagesByDay.keys()].sort((a, b) => {
-            const months = { 'janvier': 0, 'février': 1, 'mars': 2, 'avril': 3, 'mai': 4, 'juin': 5, 'juillet': 6, 'août': 7, 'septembre': 8, 'octobre': 9, 'novembre': 10, 'décembre': 11 };
+            const months = {
+                'janvier': 0,
+                'février': 1,
+                'mars': 2,
+                'avril': 3,
+                'mai': 4,
+                'juin': 5,
+                'juillet': 6,
+                'août': 7,
+                'septembre': 8,
+                'octobre': 9,
+                'novembre': 10,
+                'décembre': 11
+            };
             const partsA = a.trim().split(/\s+/);
             const dayA = parseInt(partsA[0], 10);
             const monthA = months[partsA[1]?.toLowerCase()];
@@ -1702,7 +1762,10 @@
                         borderColor: '#4346ab',
                         borderWidth: 1,
                         barPercentage: 0.9,
-                        ...(useThinBars ? { barThickness: 6, maxBarThickness: 10 } : {}),
+                        ...(useThinBars ? {
+                            barThickness: 6,
+                            maxBarThickness: 10
+                        } : {}),
                         categoryPercentage: 0.95
                     }]
                 },
@@ -1723,7 +1786,9 @@
                             ticks: {
                                 stepSize: 1,
                                 color: '#b9bbbe',
-                                font: { size: 14 }
+                                font: {
+                                    size: 14
+                                }
                             },
                             grid: {
                                 color: '#40444b'
@@ -1732,17 +1797,21 @@
                                 display: false,
                                 text: 'Nombre de messages',
                                 color: '#b9bbbe',
-                                font: { size: 16 }
+                                font: {
+                                    size: 16
+                                }
                             }
                         },
                         x: {
                             ticks: {
                                 color: '#b9bbbe',
-                                font: { size: 14 },
+                                font: {
+                                    size: 14
+                                },
                                 maxRotation: 45,
                                 minRotation: 45,
                                 autoSkip: false,
-                                callback: function (value, index, ticks) {
+                                callback: function(value, index, ticks) {
                                     const skipInterval = Math.ceil(ticks.length / 10);
                                     if (index === 0 || index === ticks.length - 1) {
                                         return this.getLabelForValue(value);
@@ -1762,7 +1831,9 @@
                         legend: {
                             labels: {
                                 color: '#b9bbbe',
-                                font: { size: 16 }
+                                font: {
+                                    size: 16
+                                }
                             }
                         },
                         title: {
@@ -1787,32 +1858,45 @@
     async function showTimelineChart() {
         const getTimelineData = () => {
             const dayActivity = new Map();
-    
+
             for (const stats of userStats.values()) {
                 for (const [dateStr, count] of stats.messageDates.entries()) {
                     const day = dateStr.split(" à ")[0].trim();
                     dayActivity.set(day, (dayActivity.get(day) || 0) + count);
                 }
             }
-    
+
             const sortedDays = [...dayActivity.entries()].sort((a, b) => {
                 const parseDate = d => {
                     const [day, monthName, year] = d.split(" ");
-                    const monthMap = { 'janvier': 0, 'février': 1, 'mars': 2, 'avril': 3, 'mai': 4, 'juin': 5, 'juillet': 6, 'août': 7, 'septembre': 8, 'octobre': 9, 'novembre': 10, 'décembre': 11 };
+                    const monthMap = {
+                        'janvier': 0,
+                        'février': 1,
+                        'mars': 2,
+                        'avril': 3,
+                        'mai': 4,
+                        'juin': 5,
+                        'juillet': 6,
+                        'août': 7,
+                        'septembre': 8,
+                        'octobre': 9,
+                        'novembre': 10,
+                        'décembre': 11
+                    };
 
                     return new Date(parseInt(year, 10), monthMap[monthName.toLowerCase()], parseInt(day, 10));
                 };
                 return parseDate(a[0]) - parseDate(b[0]);
             });
-    
+
             return {
                 labels: sortedDays.map(d => d[0]),
                 values: sortedDays.map(d => d[1])
             };
         };
-    
+
         const data = getTimelineData();
-    
+
         const overlay = document.createElement("div");
         Object.assign(overlay.style, {
             position: "fixed",
@@ -1826,7 +1910,7 @@
             alignItems: "center",
             justifyContent: "center",
         });
-    
+
         const chartContainer = document.createElement("div");
         Object.assign(chartContainer.style, {
             backgroundColor: "#2c2f33",
@@ -1840,7 +1924,7 @@
             boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
             position: "relative",
         });
-    
+
         const title = document.createElement("h3");
         title.textContent = "Activité du topic";
         Object.assign(title.style, {
@@ -1850,13 +1934,13 @@
             color: "#6064f4",
             fontWeight: "600",
         });
-    
+
         const canvas = document.createElement("canvas");
         Object.assign(canvas.style, {
             maxHeight: "500px",
             width: "100%",
         });
-    
+
         const closeButton = document.createElement("button");
         closeButton.textContent = "Fermer";
         closeButton.classList.add("action-button", "red-button");
@@ -1870,21 +1954,21 @@
             marginTop: "20px",
             fontSize: "16px",
         });
-    
+
         chartContainer.appendChild(title);
         chartContainer.appendChild(canvas);
         chartContainer.appendChild(closeButton);
         overlay.appendChild(chartContainer);
         document.body.appendChild(overlay);
-    
+
         let timelineChart;
         try {
             if (typeof Chart === 'undefined') {
                 await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
             }
-    
+
             const useThinBars = data.labels.length > 100;
-    
+
             timelineChart = new Chart(canvas, {
                 type: 'bar',
                 data: {
@@ -1894,7 +1978,10 @@
                         data: data.values,
                         backgroundColor: '#6064f4',
                         borderColor: '#4346ab',
-                        ...(useThinBars ? { barThickness: 6, maxBarThickness: 10 } : {}),
+                        ...(useThinBars ? {
+                            barThickness: 6,
+                            maxBarThickness: 10
+                        } : {}),
                         borderWidth: 1,
                     }]
                 },
@@ -1911,7 +1998,9 @@
                         legend: {
                             labels: {
                                 color: '#b9bbbe',
-                                font: { size: 16 }
+                                font: {
+                                    size: 16
+                                }
                             }
                         }
                     },
@@ -1919,11 +2008,13 @@
                         x: {
                             ticks: {
                                 color: '#b9bbbe',
-                                font: { size: 12 },
+                                font: {
+                                    size: 12
+                                },
                                 maxRotation: 45,
                                 minRotation: 45,
                                 autoSkip: false,
-                                callback: function (value, index, ticks) {
+                                callback: function(value, index, ticks) {
                                     const skipInterval = Math.ceil(ticks.length / 10);
                                     if (index === 0 || index === ticks.length - 1) {
                                         return this.getLabelForValue(value);
@@ -1931,15 +2022,22 @@
                                     return (index % skipInterval === 0 ? this.getLabelForValue(value) : '');
                                 }
                             },
-                            grid: { color: '#40444b' }
+                            grid: {
+                                color: '#40444b'
+                            }
                         },
                         y: {
                             beginAtZero: true,
-                            ticks: { color: '#b9bbbe', stepSize: 1 },
-                            grid: { color: '#40444b' }
+                            ticks: {
+                                color: '#b9bbbe',
+                                stepSize: 1
+                            },
+                            grid: {
+                                color: '#40444b'
+                            }
                         }
                     },
-                    onClick: function (evt, activeElements) {
+                    onClick: function(evt, activeElements) {
                         if (activeElements.length > 0) {
                             const index = activeElements[0].index;
                             const selectedDate = this.data.labels[index];
@@ -1957,13 +2055,13 @@
             errorMessage.style.textAlign = 'center';
             chartContainer.insertBefore(errorMessage, closeButton);
         }
-    
+
         const updateTimeline = () => {
             const newData = getTimelineData();
             if (timelineChart) {
                 timelineChart.data.labels = newData.labels;
                 timelineChart.data.datasets[0].data = newData.values;
-    
+
                 if (newData.labels.length > 100) {
                     timelineChart.data.datasets[0].barThickness = 6;
                     timelineChart.data.datasets[0].maxBarThickness = 10;
@@ -1974,14 +2072,14 @@
                 timelineChart.update();
             }
         };
-    
+
         const timelineInterval = setInterval(updateTimeline, 1000);
-    
+
         closeButton.addEventListener("click", () => {
             clearInterval(timelineInterval);
             overlay.remove();
         });
-    
+
         window.addEventListener("keydown", (e) => {
             if (e.key === "Escape") {
                 clearInterval(timelineInterval);
@@ -1994,25 +2092,28 @@
 
     function showDateDetails(selectedDate) {
         const detailsMap = new Map();
-        
+
         userStats.forEach((stats, pseudo) => {
-        stats.messageDates.forEach((count, fullDate) => {
-            const dayPart = fullDate.split(" à ")[0].trim();
-            if (dayPart === selectedDate) {
-            detailsMap.set(pseudo, (detailsMap.get(pseudo) || 0) + count);
-            }
+            stats.messageDates.forEach((count, fullDate) => {
+                const dayPart = fullDate.split(" à ")[0].trim();
+                if (dayPart === selectedDate) {
+                    detailsMap.set(pseudo, (detailsMap.get(pseudo) || 0) + count);
+                }
+            });
         });
-        });
-    
+
         const detailsData = Array.from(detailsMap.entries())
-        .map(([pseudo, count]) => ({ pseudo, count }))
-        .sort((a, b) => b.count - a.count);
-    
+            .map(([pseudo, count]) => ({
+                pseudo,
+                count
+            }))
+            .sort((a, b) => b.count - a.count);
+
         if (detailsData.length === 0) {
-        showNotification(`Aucun message du ${selectedDate}`, "warning", 3000);
-        return;
+            showNotification(`Aucun message du ${selectedDate}`, "warning", 3000);
+            return;
         }
-    
+
         const overlay = document.createElement("div");
         Object.assign(overlay.style, {
             position: "fixed",
@@ -2026,7 +2127,7 @@
             alignItems: "center",
             justifyContent: "center",
         });
-    
+
         const detailsContainer = document.createElement("div");
         Object.assign(detailsContainer.style, {
             backgroundColor: "#2c2f33",
@@ -2039,56 +2140,56 @@
             overflowY: "auto",
             boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
         });
-    
+
         const header = document.createElement("h3");
         header.textContent = `Détails du ${selectedDate}`;
         header.style.color = "#6064f4";
         header.style.textAlign = "center";
         detailsContainer.appendChild(header);
-    
+
         const table = document.createElement("table");
         table.style.width = "100%";
         table.style.borderCollapse = "collapse";
         table.style.marginTop = "10px";
-    
+
         const headerRow = document.createElement("tr");
         const thPseudo = document.createElement("th");
         thPseudo.textContent = "Pseudo";
         thPseudo.style.border = "1px solid #40444b";
         thPseudo.style.padding = "5px";
         thPseudo.style.color = "#ffffff";
-    
+
         const thCount = document.createElement("th");
         thCount.textContent = "Messages";
         thCount.style.border = "1px solid #40444b";
         thCount.style.padding = "5px";
         thCount.style.color = "#ffffff";
-    
+
         headerRow.appendChild(thPseudo);
         headerRow.appendChild(thCount);
         table.appendChild(headerRow);
-    
+
         detailsData.forEach(item => {
-        const row = document.createElement("tr");
-        const tdPseudo = document.createElement("td");
-        tdPseudo.textContent = item.pseudo;
-        tdPseudo.style.border = "1px solid #40444b";
-        tdPseudo.style.padding = "5px";
-        tdPseudo.style.color = "#ffffff";
-    
-        const tdCount = document.createElement("td");
-        tdCount.textContent = item.count;
-        tdCount.style.border = "1px solid #40444b";
-        tdCount.style.padding = "5px";
-        tdCount.style.color = "#ffffff";
-    
-        row.appendChild(tdPseudo);
-        row.appendChild(tdCount);
-        table.appendChild(row);
+            const row = document.createElement("tr");
+            const tdPseudo = document.createElement("td");
+            tdPseudo.textContent = item.pseudo;
+            tdPseudo.style.border = "1px solid #40444b";
+            tdPseudo.style.padding = "5px";
+            tdPseudo.style.color = "#ffffff";
+
+            const tdCount = document.createElement("td");
+            tdCount.textContent = item.count;
+            tdCount.style.border = "1px solid #40444b";
+            tdCount.style.padding = "5px";
+            tdCount.style.color = "#ffffff";
+
+            row.appendChild(tdPseudo);
+            row.appendChild(tdCount);
+            table.appendChild(row);
         });
-    
+
         detailsContainer.appendChild(table);
-    
+
         const closeBtn = document.createElement("button");
         closeBtn.textContent = "Fermer";
         closeBtn.classList.add("action-button", "red-button");
@@ -2106,20 +2207,20 @@
 
         closeBtn.addEventListener("click", () => overlay.remove());
         detailsContainer.appendChild(closeBtn);
-    
+
         overlay.appendChild(detailsContainer);
         document.body.appendChild(overlay);
-    
+
         window.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-            overlay.remove();
-        }
+            if (e.key === "Escape") {
+                overlay.remove();
+            }
         });
     }
 
     function showFusionMenu(pseudo, count, container) {
         container.innerHTML = "";
-    
+
         const description = window.document.createElement("p");
         description.textContent = `Sélectionnez un ou plusieurs pseudos à fusionner avec "${pseudo}".`;
         Object.assign(description.style, {
@@ -2130,15 +2231,15 @@
             lineHeight: "1.4",
         });
         container.appendChild(description);
-    
+
         const similarityContainer = window.document.createElement("div");
         similarityContainer.classList.add("similarity-container");
-    
+
         const similarityLabel = window.document.createElement("span");
         similarityLabel.textContent = "Seuil de similarité :";
         similarityLabel.classList.add("similarity-label");
         similarityContainer.appendChild(similarityLabel);
-    
+
         const similarityInput = window.document.createElement("input");
         Object.assign(similarityInput, {
             type: "range",
@@ -2151,14 +2252,14 @@
             flex: "1",
         });
         similarityContainer.appendChild(similarityInput);
-    
+
         const similarityValue = window.document.createElement("span");
         similarityValue.textContent = `${similarityInput.value}%`;
         similarityValue.classList.add("similarity-value");
         similarityContainer.appendChild(similarityValue);
-    
+
         container.appendChild(similarityContainer);
-    
+
         const presetsContainer = window.document.createElement("div");
         Object.assign(presetsContainer.style, {
             display: "flex",
@@ -2166,10 +2267,18 @@
             marginBottom: "12px",
             justifyContent: "center",
         });
-        const presets = [
-            { label: "Faible (50%)", value: 50 },
-            { label: "Moyen (70%)", value: 70 },
-            { label: "Élevé (90%)", value: 90 },
+        const presets = [{
+                label: "Faible (50%)",
+                value: 50
+            },
+            {
+                label: "Moyen (70%)",
+                value: 70
+            },
+            {
+                label: "Élevé (90%)",
+                value: 90
+            },
         ];
         presets.forEach(preset => {
             const button = window.document.createElement("button");
@@ -2184,7 +2293,7 @@
                 fontSize: "13px",
                 transition: "background-color 0.2s ease",
             });
-            
+
             button.addEventListener("click", () => {
                 similarityInput.value = preset.value;
                 similarityValue.textContent = `${preset.value}%`;
@@ -2193,14 +2302,14 @@
             presetsContainer.appendChild(button);
         });
         container.appendChild(presetsContainer);
-    
+
         const searchContainer = window.document.createElement("div");
         Object.assign(searchContainer.style, {
             position: "relative",
             width: "100%",
             marginBottom: "12px",
         });
-    
+
         const searchInput = window.document.createElement("input");
         searchInput.type = "text";
         searchInput.placeholder = "Rechercher un pseudo...";
@@ -2222,7 +2331,7 @@
         searchInput.addEventListener("blur", () => {
             searchInput.style.borderColor = "#40444b";
         });
-    
+
         const clearButton = window.document.createElement("span");
         clearButton.textContent = "×";
         Object.assign(clearButton.style, {
@@ -2236,30 +2345,30 @@
             display: "none",
             transition: "color 0.2s ease",
         });
-    
+
         clearButton.addEventListener("click", () => {
             searchInput.value = "";
             updatePseudosList();
             clearButton.style.display = "none";
         });
-    
+
         clearButton.addEventListener("mouseenter", () => {
             clearButton.style.color = "#ffffff";
         });
-    
+
         clearButton.addEventListener("mouseleave", () => {
             clearButton.style.color = "#b9bbbe";
         });
-    
+
         searchInput.addEventListener("input", () => {
             updatePseudosList(searchInput.value.trim());
             clearButton.style.display = searchInput.value.trim() ? "block" : "none";
         });
-    
+
         searchContainer.appendChild(searchInput);
         searchContainer.appendChild(clearButton);
         container.appendChild(searchContainer);
-    
+
         const fusionSelect = window.document.createElement("select");
         fusionSelect.classList.add("fusion-select");
         fusionSelect.multiple = true;
@@ -2277,12 +2386,12 @@
             cursor: "pointer",
             outline: "none",
         });
-    
+
         const updatePseudosList = (filter = "") => {
             fusionSelect.innerHTML = '';
-    
+
             const similarityThreshold = parseInt(similarityInput.value, 10) / 100;
-    
+
             const availablePseudos = [...messagesCount.entries()]
                 .filter(([p, _]) => p !== pseudo && p.toLowerCase().includes(filter.toLowerCase()))
                 .map(([p, c]) => ({
@@ -2290,7 +2399,7 @@
                     count: c,
                     similarity: calculateSimilarity(pseudo, p)
                 }));
-    
+
             const similarPseudos = availablePseudos
                 .filter(p => p.similarity >= similarityThreshold)
                 .sort((a, b) => {
@@ -2299,13 +2408,13 @@
                     }
                     return a.pseudo.localeCompare(b.pseudo);
                 });
-    
+
             const nonSimilarPseudos = availablePseudos
                 .filter(p => p.similarity < similarityThreshold)
                 .sort((a, b) => a.pseudo.localeCompare(b.pseudo));
-    
+
             const sortedPseudos = [...similarPseudos, ...nonSimilarPseudos];
-    
+
             if (sortedPseudos.length === 0) {
                 const option = window.document.createElement("option");
                 option.textContent = "Aucun pseudo disponible";
@@ -2314,7 +2423,11 @@
                 option.style.color = "#b9bbbe";
                 fusionSelect.appendChild(option);
             } else {
-                sortedPseudos.forEach(({ pseudo: p, count: c, similarity }) => {
+                sortedPseudos.forEach(({
+                    pseudo: p,
+                    count: c,
+                    similarity
+                }) => {
                     const option = window.document.createElement("option");
                     option.value = p;
                     option.textContent = `${p} (${c} ${c > 1 ? "messages" : "message"})`;
@@ -2330,20 +2443,20 @@
                 });
             }
         };
-    
+
         updatePseudosList();
-    
+
         similarityInput.addEventListener("input", () => {
             similarityValue.textContent = `${similarityInput.value}%`;
             updatePseudosList(searchInput.value.trim());
         });
-    
+
         fusionSelect.addEventListener("change", () => {
             Array.from(fusionSelect.options).forEach(option => {
                 option.style.display = "";
             });
         });
-    
+
         const confirmButton = window.document.createElement("button");
         confirmButton.textContent = "Confirmer la fusion";
         confirmButton.classList.add("action-button", "orange-button");
@@ -2358,7 +2471,7 @@
             fontSize: "16px",
             fontWeight: "600",
         });
-    
+
         confirmButton.addEventListener("click", () => {
             const selectedOptions = [...fusionSelect.selectedOptions];
             if (selectedOptions.length > 0) {
@@ -2366,7 +2479,7 @@
                     const sourcePseudo = option.value;
                     fusionPseudos(pseudo, sourcePseudo, messagesCount.get(sourcePseudo));
                 });
-    
+
                 updateResults();
                 searchInput.value = "";
                 clearButton.style.display = "none";
@@ -2376,7 +2489,7 @@
                 showNotification("Aucun pseudo sélectionné pour la fusion.", "warning");
             }
         });
-    
+
         container.appendChild(fusionSelect);
         container.appendChild(confirmButton);
     }
@@ -2384,26 +2497,26 @@
     function fusionAllPotentialSecondary() {
         const fusionMessages = [];
         const pseudos = Array.from(messagesCount.keys());
-        
+
         for (let i = 0; i < pseudos.length; i++) {
             const mainPseudo = pseudos[i];
             if (!messagesCount.has(mainPseudo)) continue;
-            
+
             for (let j = i + 1; j < pseudos.length; j++) {
                 const otherPseudo = pseudos[j];
                 if (!messagesCount.has(otherPseudo)) continue;
-                
+
                 const similarity = calculateSimilarity(mainPseudo, otherPseudo);
-                
+
                 if (similarity >= 0.70) {
                     fusionMessages.push(`"${otherPseudo}" → "${mainPseudo}"`);
                     fusionPseudos(mainPseudo, otherPseudo, messagesCount.get(otherPseudo));
                 }
             }
         }
-        
+
         updateResults();
-        
+
         if (fusionMessages.length === 0) {
             showNotification("Aucune fusion pertinente détectée.", "warning");
         } else {
@@ -2469,8 +2582,8 @@
 
     function updateSummary() {
         if (isPaused && pausedSummary) {
-        summaryElement.innerHTML = pausedSummary;
-        return;
+            summaryElement.innerHTML = pausedSummary;
+            return;
         }
 
         const totalTime = Date.now() - startTime;
@@ -2484,7 +2597,7 @@
         summaryElement.innerHTML = summary;
 
         if (!isPaused) {
-        pausedSummary = "";
+            pausedSummary = "";
         }
     }
 

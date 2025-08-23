@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.5.4";
+    const scriptVersion = "v1.6.0";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -8,16 +8,18 @@
     let isPaused = false;
     let isPendingRequest = false;
     let pausedSummary = "";
+    const allMessages = [];
     const analyzedPages = new Set();
     const previousPositions = new Map();
     const userStats = new Map();
     const maxPages = (() => {
-        const p = document.querySelector(".bloc-liste-num-page");
-        if (!p) return 1;
-        const l = p.querySelectorAll("a.xXx.lien-jv");
-        if (!l.length) return 1;
-        const i = l.length > 11 ? l.length - 2 : l.length - 1;
-        return parseInt(l[i].textContent, 10) || 1;
+        let max = 1;
+        for (const a of document.querySelectorAll(".bloc-liste-num-page a.lien-jv")) {
+            const n = parseInt(a.textContent, 10);
+            if (n > max) max = n;
+        }
+        const pNum = parseInt(location.pathname.split("-")[3], 10) || 1;
+        return Math.max(max, pNum);
     })();
     const startTime = Date.now();
     const topicTitleElement = document.querySelector("#bloc-title-forum");
@@ -347,7 +349,7 @@
         transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
         }
         button:hover { 
-        background: #4346ab; 
+        background: #4346ab;
         }
         button:active {
         transform: scale(0.97);
@@ -735,6 +737,19 @@
         <button onclick="copyResults()">Copier les résultats</button>
         <button onclick="showTimelineChart()">Timeline</button>
         </div>
+        <div id="search-bar" class="search-bar" style="display:none; text-align:center; margin-bottom:15px;">
+          <input id="search-input" type="text" placeholder="Rechercher un mot, lien, etc…" 
+                 style="width:60%; padding:8px; border-radius:4px; border:1px solid #40444b; background:#1e1f22; color:#fff;">
+        <button id="search-button" class="action-button blue-button"
+                style="margin-left:12px; font-size:12px; padding:11px;">
+          Actualiser
+        </button>
+        </div>
+        <div id="search-results" style="display:none; margin-bottom:15px; max-height:500px; overflow-y:auto; border:1px solid #40444b; border-radius:4px; background:#1e1f22; padding:10px;">
+        <div style="color:#b9bbbe; text-align:center;">
+        Veuillez saisir une recherche.
+        </div>
+        </div>
         <div class="progress-bar">
         <div class="fill"></div>
         <span class="progress-percentage">0%</span>
@@ -756,7 +771,7 @@
         </table>
         </div>
         <div class="notification-container"></div>
-        <div class="version">${scriptVersion}</div>
+        <div class="version"><a href="https://github.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/commits/main/" target="_blank">${scriptVersion}</a></div>
     </div>
     <div class="settings-icon" onclick="toggleSettingsMenu()">⚙️</div>
         <div class="settings-menu" id="settings-menu">
@@ -766,6 +781,11 @@
         </label>
         <button id="fusion-auto-button" class="action-button blue-button" style="width: auto; padding: 5px 10px; font-size: 13px; margin-top: 10px;">
         Fusionner tous les secondaires potentiels
+        </button>
+        <br>
+        <button id="search-topic-button" class="action-button blue-button" 
+        style="width: auto; padding: 5px 10px; font-size: 13px;">
+        Rechercher dans le topic
         </button>
         </div>
     </body>
@@ -782,6 +802,165 @@
         settingsMenu.classList.toggle("show");
     }
     window.toggleSettingsMenu = toggleSettingsMenu;
+
+    function toggleSearchBar() {
+        const bar = document.getElementById("search-bar");
+        const results = document.getElementById("search-results");
+        const isHidden = bar.style.display === "none";
+        bar.style.display = isHidden ? "block" : "none";
+        results.style.display = isHidden ? "block" : "none";
+    }
+
+    window.toggleSearchBar = toggleSearchBar;
+
+    function extractSearch(text, searchInput) {
+        const lowerText = text.toLowerCase();
+        const lowerSearchInput = searchInput.toLowerCase();
+        const i = lowerText.indexOf(lowerSearchInput);
+
+        if (i < 0) {
+            return text.slice(0, 100) + (text.length > 100 ? '…' : '');
+        }
+
+        const start = Math.max(0, i - 45);
+        const end = Math.min(text.length, i + searchInput.length + 45);
+        let excerpt = (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+
+        const eInput = searchInput.replace(/[*+?^${}()|[\]\\]/g, '\\$&');
+        const highlightReg = new RegExp(eInput, 'gi');
+        return excerpt.replace(highlightReg, match => `<mark>${match}</mark>`);
+    }
+
+    async function pSearch(page = 1) {
+        const input = document.getElementById('search-input');
+        const results = document.getElementById('search-results');
+        const query = input.value.trim().toLowerCase();
+
+        results.innerHTML = '';
+        results.style.position = 'relative';
+
+        const existingHeader = document.getElementById('search-header');
+        if (existingHeader) {
+            existingHeader.remove();
+        }
+
+        if (!query) {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'text-align:center;';
+            empty.textContent = 'Aucune recherche saisie.';
+            results.appendChild(empty);
+            return;
+        }
+
+        const matches = allMessages.filter(m => m.text.toLowerCase().includes(query));
+        const totalCount = matches.length;
+
+        const header = document.createElement('div');
+        header.id = 'search-header';
+        Object.assign(header.style, {
+            background: '#1e1f22',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '6px 10px',
+            borderBottom: '1px solid #40444b',
+            borderTopLeftRadius: '4px',
+            borderTopRightRadius: '4px'
+        });
+
+        const counter = document.createElement('span');
+        counter.style.cssText = 'color:#b9bbbe; font-size:13px;';
+        counter.textContent = `${totalCount} message${totalCount>1?'s':''} trouvé${totalCount>1?'s':''}`;
+        header.appendChild(counter);
+
+        const perPage = 20;
+        const totalPages = Math.ceil(totalCount / perPage) || 1;
+        const current = Math.min(Math.max(page, 1), totalPages);
+        counter.textContent = `${totalCount} message${totalCount>1?'s':''} trouvé${totalCount>1?'s':''} (${current}/${totalPages})`;
+
+        const nav = document.createElement('div');
+        nav.style.cssText = 'display:flex; align-items:center;';
+
+        const prev = document.createElement('span');
+        prev.textContent = 'Précédent';
+        Object.assign(prev.style, {
+            color: '#6064f4',
+            fontSize: '12px',
+            cursor: current > 1 ? 'pointer' : 'default',
+            opacity: current > 1 ? '1' : '0.5',
+            marginRight: '8px',
+            userSelect: 'none'
+        });
+        if (current > 1) prev.addEventListener('click', () => {
+            pSearch(current - 1);
+            document.getElementById('search-results').scrollTop = 0;
+        });
+        nav.appendChild(prev);
+
+        const next = document.createElement('span');
+        next.textContent = 'Suivant';
+        Object.assign(next.style, {
+            color: '#6064f4',
+            fontSize: '12px',
+            cursor: current < totalPages ? 'pointer' : 'default',
+            opacity: current < totalPages ? '1' : '0.5',
+            userSelect: 'none'
+        });
+        if (current < totalPages) next.addEventListener('click', () => {
+            pSearch(current + 1);
+            document.getElementById('search-results').scrollTop = 0;
+        });
+        nav.appendChild(next);
+
+        header.appendChild(nav);
+
+        results.parentNode.insertBefore(header, results);
+
+        results.style.borderTop = 'none';
+        results.style.borderTopLeftRadius = '0';
+        results.style.borderTopRightRadius = '0';
+
+        if (!query || totalCount === 0) {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'color:#ffa500; text-align:center; margin-top:16px;';
+            empty.textContent = `Aucun message trouvé pour « ${input.value} »`;
+            results.appendChild(empty);
+            return;
+        }
+
+        const startIdx = (current - 1) * perPage;
+        const pageItems = matches.slice(startIdx, startIdx + perPage);
+
+        pageItems.forEach(({
+            pseudo,
+            avatar,
+            link,
+            text
+        }) => {
+            const item = document.createElement('div');
+            item.style.cssText = 'display:flex; align-items:flex-start; margin:10px 0;';
+            const excerpt = extractSearch(text, input.value.trim());
+            item.innerHTML = `
+                <img src="${avatar}" alt="${pseudo}"
+                    style="width:32px; height:32px; border-radius:50%; margin-right:8px;">
+                <div style="flex:1">
+                <span style="color:#6064f4; font-weight:bold">${pseudo}</span>
+                    <p style="margin:4px 0;color:#fff; font-size:14px; line-height:1.4">
+                      <a href="${link||'#'}" target="_blank" style="color:#fff; display:block">
+                        ${excerpt}
+                      </a>
+                    </p>
+                </div>`;
+
+            results.appendChild(item);
+        });
+    }
+
+    document.getElementById('search-button').addEventListener('click', e => {
+        e.preventDefault();
+        setTimeout(() => pSearch(), 0);
+    });
+    document.getElementById('search-input').addEventListener('keyup', e => e.key === 'Enter' && pSearch());
 
     document.addEventListener('click', (event) => {
         const settingsMenu = document.querySelector('#settings-menu');
@@ -1038,10 +1217,7 @@
                             const messageContainer = messageElement.closest(".conteneur-message");
                             if (messageContainer) {
                                 const dateElement = messageContainer.querySelector(".bloc-date-msg");
-                                let messageDate = null;
-                                if (dateElement) {
-                                    messageDate = dateElement.textContent.trim();
-                                }
+                                let messageDate = dateElement ? dateElement.textContent.trim() : null;
 
                                 if (!userStats.has(pseudo)) {
                                     userStats.set(pseudo, {
@@ -1049,6 +1225,7 @@
                                         messageCount: 0,
                                         averageChars: 0,
                                         stickerCount: 0,
+                                        smileyCount: 0,
                                         messageDates: new Map()
                                     });
                                 }
@@ -1069,10 +1246,8 @@
                                     let stickersFound = 0;
                                     let smileysFound = 0;
 
-                                    const imgElements = tempDiv.querySelectorAll('img');
-                                    imgElements.forEach(img => {
+                                    tempDiv.querySelectorAll('img').forEach(img => {
                                         const src = img.getAttribute('src');
-
                                         if (src && (stickerRegex.test(src) || src.includes("image.jeuxvideo.com/stickers"))) {
                                             stickersFound++;
                                         } else if (smileyRegex.test(src) || src.includes("smileys_img")) {
@@ -1080,15 +1255,30 @@
                                         }
                                     });
 
-                                    const stats = userStats.get(pseudo);
-                                    stats.stickerCount = (stats.stickerCount || 0) + stickersFound;
-                                    stats.smileyCount = (stats.smileyCount || 0) + smileysFound;
+                                    stats.stickerCount += stickersFound;
+                                    stats.smileyCount += smileysFound;
 
                                     tempDiv.querySelectorAll('a').forEach(a => a.remove());
-                                    const textContent = tempDiv.textContent || '';
-                                    const charCount = textContent.replace(/\s+/g, '').length;
-                                    stats.totalChars += charCount;
+                                    const textOnly = tempDiv.textContent.trim();
+                                    stats.totalChars += textOnly.length;
                                     stats.averageChars = Math.round(stats.totalChars / stats.messageCount);
+
+                                    const avatarElem = messageContainer.querySelector(".bloc-avatar-msg img");
+                                    const avatarUrl = avatarElem ? avatarElem.getAttribute("data-src") || avatarElem.getAttribute("data-original") || avatarElem.src : "";
+
+                                    const messageBlock = messageElement.closest(".bloc-message-forum");
+                                    const messageId = messageBlock ? messageBlock.getAttribute("data-id") : null;
+                                    let messageLink = messageId ? `https://www.jeuxvideo.com/forums/message/${messageId}` : (() => {
+                                        const linkEl = messageContainer.querySelector(".bloc-date-msg a.lien-jv");
+                                        return (linkEl && linkEl.href.includes('/forums/message/')) ? new URL(linkEl.href, window.location.origin).href : "";
+                                    })();
+
+                                    allMessages.push({
+                                        pseudo: pseudo,
+                                        avatar: avatarUrl,
+                                        link: messageLink,
+                                        text: textOnly
+                                    });
                                 }
                             }
                         }
@@ -2529,6 +2719,7 @@
     }
 
     document.getElementById("fusion-auto-button").addEventListener("click", fusionAllPotentialSecondary);
+    document.getElementById("search-topic-button").addEventListener("click", toggleSearchBar);
 
     function updateStatus(text, className = "green", isPaused = false) {
         const spinner = '<span id="spinner"></span>';

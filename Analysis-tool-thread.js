@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.6.0";
+    const scriptVersion = "v1.6.1";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -804,11 +804,25 @@
     window.toggleSettingsMenu = toggleSettingsMenu;
 
     function toggleSearchBar() {
-        const bar = document.getElementById("search-bar");
-        const results = document.getElementById("search-results");
-        const isHidden = bar.style.display === "none";
-        bar.style.display = isHidden ? "block" : "none";
-        results.style.display = isHidden ? "block" : "none";
+        const bar = document.getElementById('search-bar');
+        const results = document.getElementById('search-results');
+        const header = document.getElementById('search-header');
+        const input = document.getElementById('search-input');
+        const isHidden = bar.style.display === 'none';
+
+        bar.style.display = isHidden ? 'block' : 'none';
+        results.style.display = isHidden ? 'block' : 'none';
+
+        if (!isHidden) {
+            if (header) {
+                header.style.display = 'none';
+            }
+        } else {
+            if (header && input.value.trim()) {
+                header.style.display = 'flex';
+                pSearch();
+            }
+        }
     }
 
     window.toggleSearchBar = toggleSearchBar;

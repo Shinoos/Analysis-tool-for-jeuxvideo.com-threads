@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.6.1";
+    const scriptVersion = "v1.6.2";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -1533,7 +1533,7 @@
     }
 
     function showUserActionMenu(pseudo, count, row) {
-        const overlay = window.document.createElement("div");
+        const overlay = document.createElement("div");
         Object.assign(overlay.style, {
             position: "fixed",
             top: "0",
@@ -1547,24 +1547,26 @@
             justifyContent: "center",
         });
 
-        const menu = window.document.createElement("div");
+        const menu = document.createElement("div");
         Object.assign(menu.style, {
             backgroundColor: "#2c2f33",
             border: "1px solid #40444b",
             borderRadius: "12px",
             padding: "25px",
-            width: "450px",
+            width: "30vw",
             maxWidth: "90%",
+            maxHeight: "80vh",
+            overflowY: "auto",
             boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
             fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
             color: "#ffffff",
             position: "relative",
             transform: "scale(0.9)",
             opacity: "0",
-            transition: "transform 0.3s ease, opacity 0.3s ease",
+            transition: "transform 0.3s ease, opacity 0.3s ease"
         });
 
-        const titleContainer = window.document.createElement("div");
+        const titleContainer = document.createElement("div");
         Object.assign(titleContainer.style, {
             display: "flex",
             alignItems: "center",
@@ -1572,7 +1574,7 @@
             marginBottom: "15px",
         });
 
-        const title = window.document.createElement("h3");
+        const title = document.createElement("h3");
         title.textContent = `${pseudo}`;
         Object.assign(title.style, {
             fontSize: "18px",
@@ -1581,9 +1583,8 @@
             fontWeight: "600",
             margin: "0 10px 0 0",
         });
-        titleContainer.appendChild(title);
 
-        const chartButton = window.document.createElement("button");
+        const chartButton = document.createElement("button");
         chartButton.textContent = "Graphique";
         chartButton.classList.add("action-button", "blue-button");
         Object.assign(chartButton.style, {
@@ -1591,38 +1592,25 @@
             fontSize: "12px",
             color: "#ffffff",
             border: "none",
-            borderRadius: "3px",
+            borderRadius: "8px",
             cursor: "pointer",
             lineHeight: "1.2",
             outline: "none",
         });
         chartButton.addEventListener("click", () => showActivityChart(pseudo));
-        titleContainer.appendChild(chartButton);
 
+        titleContainer.appendChild(title);
+        titleContainer.appendChild(chartButton);
         menu.appendChild(titleContainer);
 
-        const actionButtons = window.document.createElement("div");
+        const actionButtons = document.createElement("div");
         Object.assign(actionButtons.style, {
             display: "flex",
             gap: "10px",
             marginBottom: "20px",
         });
 
-        const infoButton = window.document.createElement("button");
-        infoButton.textContent = "Plus d'infos";
-        infoButton.classList.add("action-button", "blue-button");
-        Object.assign(infoButton.style, {
-            flex: "1",
-            padding: "12px",
-            color: "#ffffff",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontSize: "16px",
-            fontWeight: "600",
-        });
-
-        const fusionButton = window.document.createElement("button");
+        const fusionButton = document.createElement("button");
         fusionButton.textContent = "Fusionner";
         fusionButton.classList.add("action-button", "orange-button");
         Object.assign(fusionButton.style, {
@@ -1635,8 +1623,18 @@
             fontSize: "16px",
             fontWeight: "600",
         });
+        fusionButton.addEventListener("click", () => {
+            showFusionMenu(pseudo, count, contentContainer);
+        });
 
-        const cancelButton = window.document.createElement("button");
+        actionButtons.appendChild(fusionButton);
+        menu.appendChild(actionButtons);
+
+        const contentContainer = document.createElement("div");
+        contentContainer.style.margin = "20px 0";
+        showUserStats(pseudo, contentContainer);
+
+        const cancelButton = document.createElement("button");
         cancelButton.textContent = "Fermer";
         cancelButton.classList.add("action-button", "red-button");
         Object.assign(cancelButton.style, {
@@ -1646,31 +1644,16 @@
             border: "none",
             borderRadius: "8px",
             cursor: "pointer",
+            //marginTop: "10px",
+            fontSize: "16px",
         });
+        cancelButton.addEventListener("click", () => overlay.remove());
 
-        const contentContainer = window.document.createElement("div");
-        contentContainer.style.marginTop = "15px";
-
-        infoButton.addEventListener("click", () => {
-            showUserStats(pseudo, contentContainer);
-        });
-
-        fusionButton.addEventListener("click", () => {
-            showFusionMenu(pseudo, count, contentContainer);
-        });
-
-        cancelButton.addEventListener("click", () => {
-            overlay.remove();
-        });
-
-        actionButtons.appendChild(infoButton);
-        actionButtons.appendChild(fusionButton);
-        menu.appendChild(actionButtons);
         menu.appendChild(contentContainer);
         menu.appendChild(cancelButton);
 
         overlay.appendChild(menu);
-        window.document.body.appendChild(overlay);
+        document.body.appendChild(overlay);
 
         requestAnimationFrame(() => {
             menu.style.transform = "scale(1)";

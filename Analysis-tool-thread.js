@@ -1048,7 +1048,7 @@
                     const position = cells[0]?.textContent.split(' ')[0] || "?";
                     const pseudo = cells[1]?.textContent || "?";
                     const messageCount = parseInt(cells[2]?.textContent) || 0;
-                    resultsText += `#${position} : ${pseudo} -> ${messageCount} ${messageCount === 1 ? "message" : "messages"}\n`;
+                    resultsText += `${position} : ${pseudo} -> ${messageCount} ${messageCount === 1 ? "message" : "messages"}\n`;
 
                     if (copyAllUserData) {
                         const stats = userStats.get(pseudo) || {

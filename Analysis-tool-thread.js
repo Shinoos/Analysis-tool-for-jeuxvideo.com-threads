@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.6.2";
+    const scriptVersion = "v1.6.3";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -328,7 +328,6 @@
         .controls { 
         margin-bottom: 20px; 
         text-align: center;
-        <button onclick="showTimelineChart()">Timeline</button>
         }
         button {
         font-family: Arial, sans-serif;
@@ -344,7 +343,6 @@
         border-radius: 5px;
         color: white;
         cursor: pointer;
-        transition: background 0.3s ease;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
         }
@@ -360,19 +358,6 @@
         button.disabled {
         cursor: not-allowed;
         opacity: 0.5;
-        }
-        button:active {
-        font-family: inherit;
-        font-weight: bold;
-        font-style: inherit;
-        }
-        button.reprendre {
-        pointer-events: none;
-        opacity: 0.5;
-        }
-        button.reprendre.active {
-        pointer-events: auto;
-        opacity: 1;
         }
         .action-button {
         font-family: Arial, sans-serif;
@@ -610,6 +595,7 @@
         border-radius: 4px;
         padding: 5px 10px;
         opacity: 1;
+        border: 1px solid #7289da;
         }
         select.fusion-select {
         width: 100%;
@@ -723,9 +709,6 @@
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-        }
-        .fusion-option-similar {
-        border: 1px solid #7289da;
         }
     </style>
     </head>
@@ -1623,7 +1606,9 @@
             fontSize: "16px",
             fontWeight: "600",
         });
+
         fusionButton.addEventListener("click", () => {
+            actionButtons.style.display = 'none';
             showFusionMenu(pseudo, count, contentContainer);
         });
 
@@ -2381,19 +2366,23 @@
         closeBtn.textContent = "Fermer";
         closeBtn.classList.add("action-button", "red-button");
         Object.assign(closeBtn.style, {
-            marginTop: "15px",
+            position: "sticky",
+            bottom: "0",
+            width: "fit-content",
+            margin: "15px auto 0",
             padding: "10px 20px",
             color: "#ffffff",
             border: "none",
             borderRadius: "5px",
             cursor: "pointer",
-            display: "block",
-            marginLeft: "auto",
-            marginRight: "auto"
+            zIndex: "1",
+            textAlign: "center",
+            display: "block"
         });
 
         closeBtn.addEventListener("click", () => overlay.remove());
         detailsContainer.appendChild(closeBtn);
+        detailsContainer.style.paddingBottom = "10px";
 
         overlay.appendChild(detailsContainer);
         document.body.appendChild(overlay);

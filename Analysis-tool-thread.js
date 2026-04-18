@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.6.3";
+    const scriptVersion = "v1.6.4";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -14,16 +14,17 @@
     const userStats = new Map();
     const maxPages = (() => {
         let max = 1;
-        for (const a of document.querySelectorAll(".bloc-liste-num-page a.lien-jv")) {
-            const n = parseInt(a.textContent, 10);
-            if (n > max) max = n;
-        }
+        document.querySelectorAll(".pagination__button").forEach(el => {
+            const n = parseInt(el.textContent.trim(), 10);
+            if (!isNaN(n) && n > max) {
+                max = n;
+            }
+        });
         const pNum = parseInt(location.pathname.split("-")[3], 10) || 1;
         return Math.max(max, pNum);
     })();
     const startTime = Date.now();
-    const topicTitleElement = document.querySelector("#bloc-title-forum");
-    const topicTitle = topicTitleElement ? topicTitleElement.textContent.trim() : "Titre indisponible";
+    const topicTitle = document.querySelector(".titleMessagesUsers__title")?.textContent?.trim() || "Titre indisponible";
 
     function userPageInput() {
         return new Promise((resolve) => {
@@ -1202,82 +1203,79 @@
                     doc.documentElement.innerHTML = body;
                     let messagesOnPage = 0;
 
-                    doc.querySelectorAll(".bloc-pseudo-msg").forEach((messageElement) => {
-                        const isBlacklisted = messageElement.closest(".conteneur-message-blacklist") !== null;
-                        const pseudoElement = messageElement.querySelector(".text-user") || messageElement;
-                        const pseudo = pseudoElement.innerText.trim();
+                    doc.querySelectorAll(".messageUser").forEach((messageElement) => {
 
-                        if (!isBlacklisted && pseudo !== "Auteur blacklisté") {
-                            messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
-                            messagesOnPage++;
+                        const pseudo = messageElement.querySelector(".messageUser__label")?.textContent.trim() || "Pseudo supprimé";
 
-                            const messageContainer = messageElement.closest(".conteneur-message");
-                            if (messageContainer) {
-                                const dateElement = messageContainer.querySelector(".bloc-date-msg");
-                                let messageDate = dateElement ? dateElement.textContent.trim() : null;
+                        messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
+                        messagesOnPage++;
 
-                                if (!userStats.has(pseudo)) {
-                                    userStats.set(pseudo, {
-                                        totalChars: 0,
-                                        messageCount: 0,
-                                        averageChars: 0,
-                                        stickerCount: 0,
-                                        smileyCount: 0,
-                                        messageDates: new Map()
-                                    });
+                        const dateElement = messageElement.querySelector(".messageUser__date");
+                        let messageDate = dateElement ? dateElement.textContent.trim() : null;
+
+                        if (!userStats.has(pseudo)) {
+                            userStats.set(pseudo, {
+                                totalChars: 0,
+                                messageCount: 0,
+                                averageChars: 0,
+                                stickerCount: 0,
+                                smileyCount: 0,
+                                messageDates: new Map()
+                            });
+                        }
+
+                        const stats = userStats.get(pseudo);
+                        stats.messageCount++;
+
+                        if (messageDate) {
+                            stats.messageDates.set(messageDate, (stats.messageDates.get(messageDate) || 0) + 1);
+                        }
+
+                        const messageContent = messageElement.querySelector(".messageUser__msg");
+
+                        if (messageContent) {
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = messageContent.innerHTML;
+                            tempDiv.querySelectorAll('blockquote').forEach(bq => bq.remove());
+
+                            const stickerRegex = /noelshack\.com/i;
+                            const smileyRegex = /smileys_img/i;
+
+                            let stickersFound = 0;
+                            let smileysFound = 0;
+
+                            tempDiv.querySelectorAll('img').forEach(img => {
+                                const src = img.getAttribute('src');
+                                if (!src) return;
+
+                                if (stickerRegex.test(src) || src.includes("image.jeuxvideo.com/stickers")) {
+                                    stickersFound++;
+                                } else if (smileyRegex.test(src)) {
+                                    smileysFound++;
                                 }
-                                const stats = userStats.get(pseudo);
-                                stats.messageCount++;
-                                if (messageDate) {
-                                    stats.messageDates.set(messageDate, (stats.messageDates.get(messageDate) || 0) + 1);
-                                }
+                            });
 
-                                const messageContent = messageContainer.querySelector(".txt-msg");
-                                if (messageContent) {
-                                    const tempDiv = document.createElement('div');
-                                    tempDiv.innerHTML = messageContent.innerHTML;
-                                    tempDiv.querySelectorAll('blockquote').forEach(bq => bq.remove());
+                            stats.stickerCount += stickersFound;
+                            stats.smileyCount += smileysFound;
+                            tempDiv.querySelectorAll('a').forEach(a => a.remove());
 
-                                    const stickerRegex = /https?:\/\/(?:www\.)?(noelshack\.com|image\.noelshack\.com)\/.*\.(png|jpe?g|gif)$/i;
-                                    const smileyRegex = /https?:\/\/(?:www\.)?(?:jeuxvideo\.com|image.jeuxvideo\.com)\/smileys_img\/.*\.(png|jpe?g|gif)$/i;
-                                    let stickersFound = 0;
-                                    let smileysFound = 0;
+                            const textOnly = tempDiv.textContent.trim();
 
-                                    tempDiv.querySelectorAll('img').forEach(img => {
-                                        const src = img.getAttribute('src');
-                                        if (src && (stickerRegex.test(src) || src.includes("image.jeuxvideo.com/stickers"))) {
-                                            stickersFound++;
-                                        } else if (smileyRegex.test(src) || src.includes("smileys_img")) {
-                                            smileysFound++;
-                                        }
-                                    });
+                            stats.totalChars += textOnly.length;
+                            stats.averageChars = Math.round(stats.totalChars / stats.messageCount);
 
-                                    stats.stickerCount += stickersFound;
-                                    stats.smileyCount += smileysFound;
+                            const avatarElem = messageElement.querySelector(".avatar__image");
+                            const avatarUrl = avatarElem ? avatarElem.src : "";
 
-                                    tempDiv.querySelectorAll('a').forEach(a => a.remove());
-                                    const textOnly = tempDiv.textContent.trim();
-                                    stats.totalChars += textOnly.length;
-                                    stats.averageChars = Math.round(stats.totalChars / stats.messageCount);
+                            const messageId = messageElement.id?.replace("message-", "") || null;
+                            const messageLink = messageId ? `https://www.jeuxvideo.com/forums/message/${messageId}` : "";
 
-                                    const avatarElem = messageContainer.querySelector(".bloc-avatar-msg img");
-                                    const avatarUrl = avatarElem ? avatarElem.getAttribute("data-src") || avatarElem.getAttribute("data-original") || avatarElem.src : "";
-
-                                    const messageBlock = messageElement.closest(".bloc-message-forum");
-                                    const messageId = messageBlock ? messageBlock.getAttribute("data-id") : null;
-                                    let messageLink = messageId ? `https://www.jeuxvideo.com/forums/message/${messageId}` : (() => {
-                                        const linkEl = messageContainer.querySelector(".bloc-date-msg a.lien-jv");
-                                        return (linkEl && linkEl.href.includes('/forums/message/')) ? new URL(linkEl.href, window.location.origin).href : "";
-                                    })();
-
-                                    allMessages.push({
-                                        pseudo: pseudo,
-                                        avatar: avatarUrl,
-                                        link: messageLink,
-                                        text: textOnly
-                                    });
-                                }
-                            }
+                            allMessages.push({
+                                pseudo,
+                                avatar: avatarUrl,
+                                link: messageLink,
+                                text: textOnly
+                            });
                         }
                     });
 
@@ -1287,6 +1285,7 @@
                         messagesOnPage,
                         success: true
                     };
+
                 } catch (error) {
                     return {
                         page,
@@ -1297,32 +1296,36 @@
             });
 
             const results = await Promise.allSettled(pagePromises);
+
             let has403Error = false;
             let pagesProcessed = 0;
             let failedPages = [];
 
             results.forEach((result, index) => {
                 const page = pagesToProcess[index];
+
                 if (result.status === "fulfilled" && result.value.success) {
                     const {
                         redirected,
                         messagesOnPage
                     } = result.value;
+
                     analyzedPages.add(page);
                     pagesProcessed++;
+
                     if (!redirected) {
                         totalMessages += messagesOnPage;
                         totalPages++;
                     }
-                } else if (result.status === "fulfilled" && !result.value.success) {
-                    // console.error(`Erreur sur la page ${page}: ${result.value.error}`);
+
+                } else if (result.status === "fulfilled") {
                     if (result.value.error.includes("Erreur 403")) {
                         has403Error = true;
                     } else {
                         failedPages.push(page);
                     }
+
                 } else {
-                    console.error(`Erreur sur la page ${page}: ${result.reason}`);
                     failedPages.push(page);
                 }
             });
@@ -1332,6 +1335,7 @@
             if (has403Error) {
                 currentPage = originalCurrentPage;
                 isPaused = true;
+
                 updateStatus("Erreur 403 : Veuillez résoudre le CAPTCHA Cloudflare puis cliquer sur Reprendre.", "red", true);
                 showNotification("Erreur 403 détectée.", "error", 10000);
                 updateSummary();
@@ -1344,7 +1348,8 @@
                 updateSummary();
             }
 
-            const allRedirected = pagesProcessed === pagesToProcess.length && results.every((result) => result.status === "fulfilled" && result.value.success && result.value.redirected);
+            const allRedirected = pagesProcessed === pagesToProcess.length &&
+                results.every(r => r.status === "fulfilled" && r.value.success && r.value.redirected);
 
             if (allRedirected && currentPage > analysisMaxPages) {
                 updateStatus("Analyse terminée.", "green bold", true);
@@ -1355,18 +1360,22 @@
 
             if (failedPages.length > 0 && attempt < 50) {
                 currentPage = originalCurrentPage;
+
                 updateStatus(`Erreur réseau sur ${failedPages.length} page(s), tentative ${attempt}/50.`, "orange", false);
                 showNotification(`Erreur réseau sur ${failedPages.length} page(s), tentative ${attempt}/50.`, "warning", 5000);
+
                 const delay = Math.min(2 ** attempt * 100, 5000);
                 await new Promise(resolve => setTimeout(resolve, delay));
-                const retryPages = failedPages.filter(page => !analyzedPages.has(page));
+                const retryPages = failedPages.filter(p => !analyzedPages.has(p));
+
                 if (retryPages.length > 0) {
                     currentPage = Math.min(...retryPages);
                     return handlePage(attempt + 1);
                 }
+
             } else if (failedPages.length > 0) {
                 currentPage = originalCurrentPage;
-                console.error("Échec malgré plusieurs tentatives pour les pages:", failedPages);
+
                 updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red", true);
                 showNotification(`Erreur fatale sur ${failedPages.length} page(s) après 50 tentatives.`, "error", 30000000);
                 updateSummary();
@@ -1381,18 +1390,19 @@
             }
 
         } catch (error) {
-            console.error("Erreur lors du traitement des pages:", error);
+            console.error("Erreur globale :", error);
+
             currentPage = originalCurrentPage;
             isPendingRequest = false;
 
             if (attempt < 50) {
                 updateStatus(`Erreur, tentative ${attempt}/50...`, "orange", false);
-                showNotification(`Erreur, tentative ${attempt}/50 après un délai...`, "warning", 5000);
+
                 const delay = Math.min(2 ** attempt * 100, 5000);
                 await new Promise(resolve => setTimeout(resolve, delay));
+
                 handlePage(attempt + 1);
             } else {
-                console.error("Échec malgré plusieurs tentatives.");
                 updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red", true);
                 showNotification(`Erreur fatale : ${error.message}`, "error", 30000000);
                 updateSummary();

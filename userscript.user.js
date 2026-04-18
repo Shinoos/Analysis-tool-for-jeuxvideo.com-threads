@@ -2,7 +2,7 @@
 // @name         Analysis-tool-for-jeuxvideo.com-threads
 // @description  Analysis tool designed to calculate the number of posts made by users in a thread
 // @author       Shinoos
-// @version      1.0.6
+// @version      1.0.7
 // @connect      raw.githubusercontent.com
 // @connect      cdn.jsdelivr.net
 // @updateURL    https://raw.githubusercontent.com/Shinoos/Analysis-tool-for-jeuxvideo.com-threads/refs/heads/main/userscript.user.js
@@ -40,7 +40,7 @@
         throw new Error("GMxhr non supporté sur ce gestionnaire de scripts.");
     }
 
-    const forumRightCol = document.querySelector("#forum-right-col");
+    const forumRightCol = document.querySelector(".layout__contentAside");
     if (!forumRightCol) return;
 
     const buttonDiv = document.createElement('div');

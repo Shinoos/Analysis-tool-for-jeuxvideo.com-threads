@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.7.0";
+    const scriptVersion = "v1.7.1";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -2419,12 +2419,13 @@
       if (activityRefreshInterval) clearInterval(activityRefreshInterval);
 
       activityRefreshInterval = setInterval(() => {
+        renderCurrentTab();
+
         if (currentPage > analysisMaxPages || isPaused) {
           clearInterval(activityRefreshInterval);
           activityRefreshInterval = null;
           return;
         }
-        renderCurrentTab();
       }, 1000);
     }
 

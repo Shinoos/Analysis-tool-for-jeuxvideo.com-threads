@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.7.1";
+    const scriptVersion = "v1.8.0";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -11,6 +11,8 @@
     let fusionHistory = [];
     const userAvatars = new Map();
     const allMessages = [];
+    const globalStickerCount = new Map();
+    const globalWordCount = new Map();
     const analyzedPages = new Set();
     const previousPositions = new Map();
     const userStats = new Map();
@@ -776,7 +778,10 @@
         <button id="fusion-history-button" class="action-button blue-button" 
         style="width: auto; padding: 5px 10px; font-size: 13px; margin-top: 10px;">
         Historique des fusions
-    </button>
+        <button onclick="showTopicStatsModal()" class="action-button blue-button"
+        style="display: block; width: auto; padding: 5px 10px; font-size: 13px; margin-top: 10px;">
+        Statistiques globales
+        </button>
         </div>
     </body>
     </html>`;
@@ -1232,7 +1237,9 @@
                   averageChars: 0,
                   stickerCount: 0,
                   smileyCount: 0,
-                  messageDates: new Map()
+                  messageDates: new Map(),
+                  stickerUrls: new Map(),
+                  wordCount: new Map()
                 });
               }
 
@@ -1262,6 +1269,9 @@
 
                   if (stickerRegex.test(src) || src.includes("image.jeuxvideo.com/stickers")) {
                     stickersFound++;
+                    const normSrc = src.startsWith('//') ? 'https:' + src : src;
+                    globalStickerCount.set(normSrc, (globalStickerCount.get(normSrc) || 0) + 1);
+                    stats.stickerUrls.set(normSrc, (stats.stickerUrls.get(normSrc) || 0) + 1);
                   } else if (smileyRegex.test(src)) {
                     smileysFound++;
                   }
@@ -1275,6 +1285,17 @@
 
                 stats.totalChars += textOnly.length;
                 stats.averageChars = Math.round(stats.totalChars / stats.messageCount);
+
+                const stopWords = new Set([
+                  'le','la','les','de','du','des','un','une','et','en','au','aux','à','a','ce','se','sa','son','ses','mon','ma','mes','ton','ta','tes','on','il','ils','elle','elles','je','tu','nous','vous','qui','que','qu','ça','c','j','y','n','m','s','l','d','si','ne','pas','plus','par','sur','dans','avec','pour','mais','ou','donc','or','ni','car','est','était','sont','être','avoir','je','me','te','lui','leur','tout','tous','très','bien','comme','quand','car','même','après','avant','aussi','non','oui','plus','moins','encore','déjà','toujours','jamais','rien','quelque','autre','autres','cette','cet','ces','va','vais','fait','faire','dit','dire','peut','peu','sous','dont','chez','entre','vers','alors','ainsi','car','etc',
+                  'http','https','www','com','net','org','fr','php','html','jpg','png','gif','svg']);
+                const wordTokens = textOnly.toLowerCase().match(/\b[a-zàâäéèêëîïôöùûüç]{3,}\b/g) || [];
+                wordTokens.forEach(w => {
+                  if (!stopWords.has(w)) {
+                    globalWordCount.set(w, (globalWordCount.get(w) || 0) + 1);
+                    stats.wordCount.set(w, (stats.wordCount.get(w) || 0) + 1);
+                  }
+                });
 
                 const avatarElem = messageElement.querySelector(".avatar__image");
                 const avatarUrl = avatarElem ? avatarElem.src : "";
@@ -1996,7 +2017,7 @@
           data: {
             labels: dates.length > 0 ? dates.map(date => date.split(' à ')[0]) : ['Aucune donnée'],
             datasets: [{
-              label: 'Messages postés',
+              label: ' Messages postés',
               data: messageCounts.length > 0 ? messageCounts : [0],
               backgroundColor: '#6064f4',
               borderColor: '#4346ab',
@@ -2176,12 +2197,12 @@
           <h3 style="margin:0; color:#6064f4; flex:1;">Activité du topic</h3>
           <div style="display:flex; border-radius:8px; padding:4px;">
           <button id="tab-timeline" onclick="switchActivityTab('timeline')" 
-              style="padding:8px 24px; border:none; border-radius:6px; font-weight:600;">
-              Timeline
+            style="padding:8px 24px; border:none; border-radius:6px; font-weight:600;">
+            Timeline
           </button>
           <button id="tab-heatmap" onclick="switchActivityTab('heatmap')" 
-              style="padding:8px 24px; border:none; border-radius:6px; font-weight:600;">
-              Heatmap
+            style="padding:8px 24px; border:none; border-radius:6px; font-weight:600; background:#1e1f22;">
+            Heatmap
           </button>
         </div>
           <button onclick="closeActivityModal()" class="action-button red-button"
@@ -2191,13 +2212,32 @@
         </div>
         <div id="modal-content" style="flex:1; overflow:auto; padding:25px;"></div>`;
 
+      updateActivityTabUI("timeline");
+
       overlay.appendChild(modal);
       document.body.appendChild(overlay);
 
       window.switchActivityTab = function(tab) {
+        updateActivityTabUI(tab);
         currentActivityTab = tab;
         renderCurrentTab();
       };
+
+      function updateActivityTabUI(activeTab) {
+        const timeline = document.getElementById("tab-timeline");
+        const heatmap = document.getElementById("tab-heatmap");
+
+        if (!timeline || !heatmap) return;
+
+        const activeColor = "#6064f4";
+        const inactiveColor = "#1e1f22";
+
+        timeline.style.background = activeTab === "timeline" ? activeColor : inactiveColor;
+        heatmap.style.background = activeTab === "heatmap" ? activeColor : inactiveColor;
+
+        timeline.style.color = "white";
+        heatmap.style.color = "white";
+      }
 
       window.closeActivityModal = function() {
         if (activityRefreshInterval) clearInterval(activityRefreshInterval);
@@ -2270,6 +2310,7 @@
 
       function createTimelineChart(data) {
         const canvas = document.getElementById('timeline-canvas');
+        const useThinBars = data.labels.length > 100;
 
         new Chart(canvas, {
           type: 'bar',
@@ -2280,6 +2321,10 @@
               data: data.values,
               backgroundColor: '#6064f4',
               borderColor: '#4346ab',
+              ...(useThinBars ? {
+                barThickness: 6,
+                maxBarThickness: 10
+                } : {}),
               borderWidth: 1
             }]
           },
@@ -2435,6 +2480,303 @@
   }
 
   window.showActivityModal = showActivityModal;
+
+  function showTopicStatsModal() {
+    let currentTopicTab = 'stickers';
+    let selectedUser = null;
+
+    const overlay = document.createElement("div");
+    Object.assign(overlay.style, {
+      position: "fixed", top: "0", left: "0", width: "100%", height: "100%",
+      backgroundColor: "rgba(0,0,0,0.85)", zIndex: "200",
+      display: "flex", alignItems: "center", justifyContent: "center"
+    });
+
+    const modal = document.createElement("div");
+    Object.assign(modal.style, {
+      backgroundColor: "#2c2f33", border: "1px solid #40444b",
+      borderRadius: "12px", width: "1100px", maxWidth: "96%",
+      maxHeight: "92vh", overflow: "hidden",
+      boxShadow: "0 15px 35px rgba(0,0,0,0.7)", color: "#ffffff",
+      display: "flex", flexDirection: "column"
+    });
+
+    const header = document.createElement("div");
+    Object.assign(header.style, {
+      padding: "20px 25px", borderBottom: "1px solid #40444b",
+      display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap"
+    });
+
+    const titleEl = document.createElement("h3");
+    titleEl.textContent = "Statistiques globales du topic";
+    Object.assign(titleEl.style, { margin: "0", color: "#6064f4", flex: "1", minWidth: "200px" });
+    header.appendChild(titleEl);
+
+    const userSelectorWrapper = document.createElement("div");
+    Object.assign(userSelectorWrapper.style, { display: "flex", alignItems: "center", gap: "8px" });
+
+    const userLabel = document.createElement("span");
+    //userLabel.textContent = "Utilisateur :";
+    Object.assign(userLabel.style, { color: "#b9bbbe", fontSize: "13px", whiteSpace: "nowrap" });
+    userSelectorWrapper.appendChild(userLabel);
+
+    const userSelect = document.createElement("select");
+    Object.assign(userSelect.style, {
+      padding: "6px 10px", borderRadius: "6px", border: "1px solid #40444b",
+      background: "#1e1f22", color: "#ffffff", fontSize: "13px", cursor: "pointer",
+      maxWidth: "200px"
+    });
+
+    const sortedUsers = [...messagesCount.entries()].sort((a, b) => b[1] - a[1]);
+    const optGlobal = document.createElement("option");
+    optGlobal.value = "";
+    optGlobal.textContent = "🌐 Topic entier";
+    userSelect.appendChild(optGlobal);
+    sortedUsers.forEach(([pseudo]) => {
+      const opt = document.createElement("option");
+      opt.value = pseudo;
+      opt.textContent = pseudo;
+      userSelect.appendChild(opt);
+    });
+
+    userSelect.addEventListener("change", () => {
+      selectedUser = userSelect.value || null;
+      titleEl.textContent = selectedUser
+        ? `Statistiques de ${selectedUser}`
+        : "Statistiques globales du topic";
+      renderTopicTab();
+    });
+    userSelectorWrapper.appendChild(userSelect);
+    header.appendChild(userSelectorWrapper);
+
+    const tabWrapper = document.createElement("div");
+    Object.assign(tabWrapper.style, { display: "flex", borderRadius: "8px", padding: "4px", gap: "4px" });
+
+    function makeTabBtn(id, label) {
+      const btn = document.createElement("button");
+      btn.id = id;
+      btn.textContent = label;
+      Object.assign(btn.style, { padding: "8px 20px", border: "none", borderRadius: "6px", fontWeight: "600", cursor: "pointer" });
+      btn.addEventListener("click", () => {
+        currentTopicTab = id.replace("ttab-", "");
+        renderTopicTab();
+      });
+      tabWrapper.appendChild(btn);
+      return btn;
+    }
+
+    makeTabBtn("ttab-stickers", "Stickers");
+    makeTabBtn("ttab-words", "Mots fréquents");
+    header.appendChild(tabWrapper);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "Fermer";
+    closeBtn.classList.add("action-button", "red-button");
+    Object.assign(closeBtn.style, { padding: "8px 24px", fontSize: "15px" });
+    closeBtn.addEventListener("click", () => overlay.remove());
+    header.appendChild(closeBtn);
+
+    modal.appendChild(header);
+
+    const contentArea = document.createElement("div");
+    Object.assign(contentArea.style, { flex: "1", overflowY: "auto", padding: "25px" });
+    modal.appendChild(contentArea);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    window.addEventListener("keydown", (e) => e.key === "Escape" && overlay.remove());
+
+    function getActiveStickerMap() {
+      if (!selectedUser) return globalStickerCount;
+      return userStats.get(selectedUser)?.stickerUrls || new Map();
+    }
+
+    function getActiveWordMap() {
+      if (!selectedUser) return globalWordCount;
+      return userStats.get(selectedUser)?.wordCount || new Map();
+    }
+
+    function renderTopicTab() {
+      ["ttab-stickers", "ttab-words"].forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const active = id === "ttab-" + currentTopicTab;
+        btn.style.background = active ? "#6064f4" : "#1e1f22";
+        btn.style.color = "#ffffff";
+      });
+      if (currentTopicTab === "stickers") renderStickersTab(contentArea);
+      else renderWordsTab(contentArea);
+    }
+
+    async function renderStickersTab(container) {
+      container.innerHTML = `<p style="text-align:center;color:#b9bbbe;">Chargement du graphique…</p>`;
+
+      const stickerMap = getActiveStickerMap();
+      const top21 = [...stickerMap.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 21);
+
+      if (top21.length === 0) {
+        container.innerHTML = `<p style="text-align:center;color:#b9bbbe;">Aucun sticker trouvé${selectedUser ? ` pour ${selectedUser}` : ''}.</p>`;
+        return;
+      }
+
+      container.innerHTML = "";
+
+      const chartTitle = document.createElement("h4");
+      chartTitle.textContent = selectedUser
+        ? `Top 21 des stickers de ${selectedUser}`
+        : "Top 21 des stickers les plus utilisés";
+      Object.assign(chartTitle.style, { textAlign: "center", color: "#6064f4", marginBottom: "15px" });
+      container.appendChild(chartTitle);
+
+      const canvasWrapper = document.createElement("div");
+      Object.assign(canvasWrapper.style, { height: "220px", marginBottom: "30px" });
+      const canvas = document.createElement("canvas");
+      canvasWrapper.appendChild(canvas);
+      container.appendChild(canvasWrapper);
+
+      const grid = document.createElement("div");
+      Object.assign(grid.style, {
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+        gap: "14px", marginTop: "10px"
+      });
+
+      top21.forEach(([src, count], i) => {
+        const card = document.createElement("div");
+        Object.assign(card.style, {
+          background: "#1e1f22", borderRadius: "10px", border: "1px solid #40444b",
+          padding: "10px", textAlign: "center", display: "flex", flexDirection: "column",
+          alignItems: "center", gap: "8px"
+        });
+        const rank = document.createElement("span");
+        rank.textContent = `#${i + 1}`;
+        Object.assign(rank.style, { fontSize: "11px", color: "#6064f4", fontWeight: "700" });
+        card.appendChild(rank);
+        const img = document.createElement("img");
+        img.src = src; img.alt = ""; img.loading = "lazy";
+        Object.assign(img.style, {
+          maxWidth: "80px", maxHeight: "80px", borderRadius: "6px",
+          objectFit: "contain", background: "#2b2d31", padding: "4px"
+        });
+        img.onerror = () => { img.style.display = "none"; };
+        card.appendChild(img);
+        const countEl = document.createElement("span");
+        countEl.textContent = `${count} fois`;
+        Object.assign(countEl.style, { fontSize: "13px", fontWeight: "700", color: "#ffffff" });
+        card.appendChild(countEl);
+        grid.appendChild(card);
+      });
+
+      container.appendChild(grid);
+
+      try {
+        if (typeof Chart === "undefined") {
+          await new Promise((res, rej) => {
+            const s = document.createElement("script");
+            s.src = "https://cdn.jsdelivr.net/npm/chart.js";
+            s.onload = res; s.onerror = rej;
+            document.head.appendChild(s);
+          });
+        }
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) existingChart.destroy();
+        new Chart(canvas, {
+          type: "bar",
+          data: {
+            labels: top21.map((_, i) => `#${i + 1}`),
+            datasets: [{
+              label: "Utilisations",
+              data: top21.map(e => e[1]),
+              backgroundColor: "#6064f4", borderColor: "#4346ab", borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: "#b9bbbe" } },
+              tooltip: {
+                callbacks: {
+                  title: (items) => `Sticker #${items[0].dataIndex + 1}`,
+                  label: (item) => ` ${item.raw} fois`
+                }
+              }
+            },
+            scales: {
+              y: { beginAtZero: true, ticks: { color: "#b9bbbe", stepSize: 1 }, grid: { color: "#40444b" } },
+              x: { ticks: { color: "#b9bbbe" }, grid: { display: false } }
+            }
+          }
+        });
+      } catch (e) { console.error("Erreur Chart.js stickers :", e); }
+    }
+
+    function renderWordsTab(container) {
+      container.innerHTML = "";
+
+      const wordMap = getActiveWordMap();
+      const top50 = [...wordMap.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 50);
+
+      if (top50.length === 0) {
+        container.innerHTML = `<p style="text-align:center;color:#b9bbbe;">Aucun mot trouvé${selectedUser ? ` pour ${selectedUser}` : ''}.</p>`;
+        return;
+      }
+
+      const title = document.createElement("h4");
+      title.textContent = selectedUser
+        ? `Top 50 des mots les plus utilisés par ${selectedUser}`
+        : "Top 50 des mots les plus utilisés dans le topic";
+      Object.assign(title.style, { textAlign: "center", color: "#6064f4", marginBottom: "20px" });
+      container.appendChild(title);
+
+      const maxCount = top50[0][1];
+      const list = document.createElement("div");
+      Object.assign(list.style, { display: "flex", flexDirection: "column", gap: "8px" });
+
+      top50.forEach(([word, count], i) => {
+        const row = document.createElement("div");
+        Object.assign(row.style, { display: "flex", alignItems: "center", gap: "12px" });
+
+        const rankEl = document.createElement("span");
+        rankEl.textContent = `#${i + 1}`;
+        Object.assign(rankEl.style, { width: "36px", textAlign: "right", color: "#6064f4", fontWeight: "700", fontSize: "13px", flexShrink: "0" });
+        row.appendChild(rankEl);
+
+        const wordEl = document.createElement("span");
+        wordEl.textContent = word;
+        Object.assign(wordEl.style, { width: "160px", fontWeight: "600", color: "#ffffff", fontSize: "14px", flexShrink: "0" });
+        row.appendChild(wordEl);
+
+        const barWrapper = document.createElement("div");
+        Object.assign(barWrapper.style, { flex: "1", background: "#1e1f22", borderRadius: "6px", height: "20px", overflow: "hidden" });
+        const bar = document.createElement("div");
+        const pct = ((count / maxCount) * 100).toFixed(1);
+        Object.assign(bar.style, {
+          width: `${pct}%`, height: "100%",
+          background: `hsl(${240 - i * 3}, 70%, 60%)`,
+          borderRadius: "6px", transition: "width 0.4s ease"
+        });
+        barWrapper.appendChild(bar);
+        row.appendChild(barWrapper);
+
+        const countEl = document.createElement("span");
+        countEl.textContent = count.toLocaleString("fr-FR");
+        Object.assign(countEl.style, { width: "60px", textAlign: "right", color: "#b9bbbe", fontSize: "13px", flexShrink: "0" });
+        row.appendChild(countEl);
+
+        list.appendChild(row);
+      });
+
+      container.appendChild(list);
+    }
+
+    renderTopicTab();
+  }
+
+  window.showTopicStatsModal = showTopicStatsModal;
 
 
   let dateDetailOverlay = null;
@@ -2873,7 +3215,7 @@
 
       updateResults();
       updateSummary();
-      showNotification(`${count} fusions ont été annulée.`, "success");
+      showNotification(`${count} fusions ont été annulées.`, "success");
       return;
     }
 

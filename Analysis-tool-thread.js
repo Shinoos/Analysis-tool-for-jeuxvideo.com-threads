@@ -1,5 +1,5 @@
 (async function main() {
-    const scriptVersion = "v1.8.0";
+    const scriptVersion = "v1.9.0";
     checkScriptVersion();
     let currentPage = 1;
     let messagesCount = new Map();
@@ -8,7 +8,16 @@
     let isPaused = false;
     let isPendingRequest = false;
     let pausedSummary = "";
+    let turboMode = false;
+    let runId = 0;
+    let activeSleep = null;
+    const requestDurations = [];
+    const request_Interval_Ms = 1000;
     let fusionHistory = [];
+    let topicStatsOverlay = null;
+    let topicStatsRefresh = null;
+    let topicStatsEscHandler = null;
+    let topicStatsTimer = null;
     const userAvatars = new Map();
     const allMessages = [];
     const globalStickerCount = new Map();
@@ -27,7 +36,7 @@
       const pNum = parseInt(location.pathname.split("-")[3], 10) || 1;
       return Math.max(max, pNum);
     })();
-    const startTime = Date.now();
+    let startTime = Date.now();
     const topicTitle = document.querySelector(".titleMessagesUsers__title")?.textContent?.trim() || "Titre indisponible";
 
     function userPageInput() {
@@ -269,6 +278,7 @@
       endPage
     } = await userPageInput();
     currentPage = startPage;
+    startTime = Date.now();
     const analysisMaxPages = endPage;
 
     window.document.body.innerHTML = `
@@ -397,6 +407,15 @@
         }
         .orange-button:active {
         background-color: #a87200;
+        }
+        .green-button {
+        background-color: #05980c;
+        }
+        .green-button:hover {
+        background-color: #047a0a;
+        }
+        .green-button:active {
+        background-color: #047a0a;
         }
         .red-button {
         background-color: #ff4d4d;
@@ -778,10 +797,18 @@
         <button id="fusion-history-button" class="action-button blue-button" 
         style="width: auto; padding: 5px 10px; font-size: 13px; margin-top: 10px;">
         Historique des fusions
+        </button>
+        <div style="display: flex; align-items: center; margin-top: 10px;">
         <button onclick="showTopicStatsModal()" class="action-button blue-button"
-        style="display: block; width: auto; padding: 5px 10px; font-size: 13px; margin-top: 10px;">
+        style="width: auto; padding: 5px 10px; font-size: 13px; white-space: nowrap;">
         Statistiques globales
         </button>
+        <button id="turbo-button" onclick="toggleTurboMode()" class="action-button blue-button"
+        title="Désactivé : 1 requête par seconde. Activé : les requêtes s'enchaînent."
+        style="width: auto; padding: 5px 10px; font-size: 13px; white-space: nowrap;">
+        Mode turbo : OFF
+        </button>
+        </div>
         </div>
     </body>
     </html>`;
@@ -791,6 +818,15 @@
     const resultsTable = window.document.querySelector("#results");
     const statusElement = window.document.querySelector("#status");
     const notificationContainer = window.document.querySelector(".notification-container");
+
+    if (maxPages > 75) {
+        const btn = document.getElementById("turbo-button");
+      if (btn) {
+        btn.disabled = true;
+        btn.classList.add("disabled");
+        btn.title = "Mode turbo désactivé";
+      }
+    }
 
     function toggleSettingsMenu() {
       const settingsMenu = document.querySelector("#settings-menu");
@@ -1000,35 +1036,72 @@
       }, duration);
     }
 
-    pauseAnalysis = () => !isPaused && (isPaused = true, updateStatus("Analyse mise en pause.", "orange", true));
-    resumeAnalysis = () => !isPendingRequest && isPaused && (isPaused = false, updateStatus("Analyse en cours..."), handlePage());
+    pauseAnalysis = () => {
+      if (isPaused) return;
+      isPaused = true;
+      updateStatus("Analyse mise en pause.", "orange", true);
+      if (activeSleep) activeSleep.wake();
+    };
+    resumeAnalysis = () => {
+      if (isPendingRequest || !isPaused) return;
+      isPaused = false;
+      updateStatus("Analyse en cours...");
+      updateResults();
+      startAnalysisLoop();
+    };
+
+    function updateTurboButton() {
+      const button = document.getElementById("turbo-button");
+      if (!button) return;
+      button.textContent = turboMode ? "Mode turbo : ON" : "Mode turbo : OFF";
+      button.classList.toggle("green-button", turboMode);
+      button.classList.toggle("blue-button", !turboMode);
+    }
+
+    function toggleTurboMode() {
+      if (maxPages > 75) return;
+      turboMode = !turboMode;
+      updateTurboButton();
+      if (turboMode && activeSleep && activeSleep.wakeOnTurbo) activeSleep.wake();
+      updateProgress();
+      showNotification(
+        turboMode ? "Mode turbo activé : les requêtes s'enchaînent." : "Mode normal : une requête par seconde.",
+        turboMode ? "success" : "info",
+        3000
+      );
+    }
+    window.toggleTurboMode = toggleTurboMode;
+
     updateProgress = () => {
-      const progress = ((currentPage - startPage) / (analysisMaxPages - startPage + 1) * 100).toFixed(0);
+      const totalToAnalyze = analysisMaxPages - startPage + 1;
+      const processed = Math.min(analyzedPages.size, totalToAnalyze);
+      const progress = totalToAnalyze > 0 ? (processed / totalToAnalyze) * 100 : 100;
       progressBar.style.width = `${progress}%`;
-      const elapsedTime = (Date.now() - startTime) / 1000;
+
+      const pagesRemaining = totalToAnalyze - processed;
       let timeRemainingText = '';
 
-      if (currentPage > startPage) {
-        const pagesProcessed = currentPage - startPage;
-        const averageTimePerPage = elapsedTime / pagesProcessed;
-        const pagesRemaining = analysisMaxPages - currentPage + 1;
-        const timeRemaining = pagesRemaining * averageTimePerPage;
+      if (pagesRemaining > 0) {
+        if (requestDurations.length > 0) {
+          const averageRequest = requestDurations.reduce((a, b) => a + b, 0) / requestDurations.length;
+          const perPage = averageRequest + (turboMode ? 0 : request_Interval_Ms);
+          const timeRemaining = Math.round((pagesRemaining * perPage) / 1000);
 
-        if (timeRemaining > 0) {
           if (timeRemaining < 60) {
-            timeRemainingText = `durée restante estimée : ${Math.round(timeRemaining)}s`;
+            timeRemainingText = `durée restante estimée : ${timeRemaining}s`;
+          } else if (timeRemaining < 3600) {
+            timeRemainingText = `durée restante estimée : ${Math.floor(timeRemaining / 60)}m ${timeRemaining % 60}s`;
           } else {
-            const minutes = Math.floor(timeRemaining / 60);
-            const seconds = Math.round(timeRemaining % 60);
-            timeRemainingText = `durée restante estimée : ${minutes}m ${seconds}s`;
+            const hours = Math.floor(timeRemaining / 3600);
+            const minutes = Math.floor((timeRemaining % 3600) / 60);
+            timeRemainingText = `durée restante estimée : ${hours}h ${minutes}m`;
           }
         } else {
-          timeRemainingText = '';
+          timeRemainingText = '...';
         }
-      } else {
-        timeRemainingText = '...';
       }
-      document.querySelector(".progress-percentage").textContent = `${progress}% ${timeRemainingText}`;
+
+      document.querySelector(".progress-percentage").textContent = `${Math.floor(progress)}% ${timeRemainingText}`.trim();
     };
 
     copyResults = () => {
@@ -1159,289 +1232,259 @@
       }
     };
 
-    handlePage();
+    function parsePageDocument(doc, counter) {
+    doc.querySelectorAll(".messageUser").forEach((messageElement) => {
 
-    async function handlePage(attempt = 1) {
-      if (isPaused) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        return handlePage(attempt);
+      const pseudo = messageElement.querySelector(".messageUser__label")?.textContent.trim() || "Pseudo supprimé";
+
+      messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
+      counter.count++;
+
+      const avatarElem = messageElement.querySelector(".avatar__image");
+      const avatarUrl = avatarElem ? avatarElem.src : "";
+      if (avatarUrl && !userAvatars.has(pseudo)) {
+        userAvatars.set(pseudo, avatarUrl);
       }
 
-      if (statusElement.innerHTML !== `<span id="spinner"></span> Analyse en cours...`) {
-        updateStatus("Analyse en cours...", "green", false);
+      const dateElement = messageElement.querySelector(".messageUser__date");
+      let messageDate = dateElement ? dateElement.textContent.trim() : null;
+
+      if (!userStats.has(pseudo)) {
+        userStats.set(pseudo, {
+          totalChars: 0,
+          messageCount: 0,
+          averageChars: 0,
+          stickerCount: 0,
+          smileyCount: 0,
+          messageDates: new Map(),
+          stickerUrls: new Map(),
+          wordCount: new Map()
+        });
       }
 
-      const pagesToProcess = [];
-      const originalCurrentPage = currentPage;
-      for (let i = 0; i < 25 && currentPage <= analysisMaxPages; i++) {
-        if (!analyzedPages.has(currentPage)) {
-          pagesToProcess.push(currentPage);
-        }
-        currentPage++;
+      const stats = userStats.get(pseudo);
+      stats.messageCount++;
+
+      if (messageDate) {
+        stats.messageDates.set(messageDate, (stats.messageDates.get(messageDate) || 0) + 1);
       }
 
-      if (pagesToProcess.length === 0) {
+      const messageContent = messageElement.querySelector(".messageUser__msg");
+
+      if (messageContent) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = messageContent.innerHTML;
+        tempDiv.querySelectorAll('blockquote').forEach(bq => bq.remove());
+
+        const stickerRegex = /noelshack\.com/i;
+        const smileyRegex = /smileys_img/i;
+
+        let stickersFound = 0;
+        let smileysFound = 0;
+
+        tempDiv.querySelectorAll('img').forEach(img => {
+          const src = img.getAttribute('src');
+          if (!src) return;
+
+          if (stickerRegex.test(src) || src.includes("image.jeuxvideo.com/stickers")) {
+            stickersFound++;
+            const normSrc = src.startsWith('//') ? 'https:' + src : src;
+            globalStickerCount.set(normSrc, (globalStickerCount.get(normSrc) || 0) + 1);
+            stats.stickerUrls.set(normSrc, (stats.stickerUrls.get(normSrc) || 0) + 1);
+          } else if (smileyRegex.test(src)) {
+            smileysFound++;
+          }
+        });
+
+        stats.stickerCount += stickersFound;
+        stats.smileyCount += smileysFound;
+        tempDiv.querySelectorAll('a').forEach(a => a.remove());
+
+        const textOnly = tempDiv.textContent.trim();
+
+        stats.totalChars += textOnly.length;
+        stats.averageChars = Math.round(stats.totalChars / stats.messageCount);
+
+        const stopWords = new Set([
+          'le','la','les','de','du','des','un','une','et','en','au','aux','à','a','ce','se','sa','son','ses','mon','ma','mes','ton','ta','tes','on','il','ils','elle','elles','je','tu','nous','vous','qui','que','qu','ça','c','j','y','n','m','s','l','d','si','ne','pas','plus','par','sur','dans','avec','pour','mais','ou','donc','or','ni','car','est','était','sont','être','avoir','je','me','te','lui','leur','tout','tous','très','bien','comme','quand','car','même','après','avant','aussi','non','oui','plus','moins','encore','déjà','toujours','jamais','rien','quelque','autre','autres','cette','cet','ces','va','vais','fait','faire','dit','dire','peut','peu','sous','dont','chez','entre','vers','alors','ainsi','car','etc',
+          'http','https','www','com','net','org','fr','php','html','jpg','png','gif','svg', 'spoilaffichermasquer']);
+        const wordTokens = textOnly.toLowerCase().match(/\p{L}{3,}/gu) || [];
+        wordTokens.forEach(w => {
+          if (!stopWords.has(w)) {
+            globalWordCount.set(w, (globalWordCount.get(w) || 0) + 1);
+            stats.wordCount.set(w, (stats.wordCount.get(w) || 0) + 1);
+          }
+        });
+
+        const avatarElem = messageElement.querySelector(".avatar__image");
+        const avatarUrl = avatarElem ? avatarElem.src : "";
+
+        const messageId = messageElement.id?.replace("message-", "") || null;
+        const messageLink = messageId ? `https://www.jeuxvideo.com/forums/message/${messageId}` : "";
+
+        allMessages.push({
+          pseudo,
+          avatar: avatarUrl,
+          link: messageLink,
+          text: textOnly
+        });
+      }
+    });
+    }
+
+    function sleep(ms, wakeOnTurbo = false) {
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          activeSleep = null;
+          resolve();
+        }, ms);
+        activeSleep = {
+          wakeOnTurbo,
+          wake: () => {
+            clearTimeout(timer);
+            activeSleep = null;
+            resolve();
+          }
+        };
+      });
+    }
+
+    async function fetchPage(page) {
+      const path = location.pathname.split("-").map((_, i) => i === 3 ? page : _).join("-");
+      const response = await fetch(path);
+
+      if (response.status === 403) {
+        const err = new Error(`Erreur 403 sur la page ${page}`);
+        err.is403 = true;
+        throw err;
+      }
+
+      if (response.status === 429 || response.status >= 500) {
+        throw new Error(`Erreur HTTP ${response.status} sur la page ${page}`);
+      }
+
+      if (response.redirected) {
+        return { redirected: true, doc: null };
+      }
+
+      const body = await response.text();
+      const doc = document.implementation.createHTMLDocument();
+      doc.documentElement.innerHTML = body;
+      return { redirected: false, doc };
+    }
+
+    function finishAnalysis() {
+      updateStatus("Analyse terminée.", "green bold", true);
+      showNotification("Analyse terminée ! Vous pouvez désormais interagir avec les pseudos en cliquant dessus.", "info", 10000);
+      updateProgress();
+      updateResults();
+      updateSummary();
+    }
+
+    function startAnalysisLoop() {
+      runId++;
+      analysisLoop(runId);
+    }
+
+    async function analysisLoop(myRunId) {
+      let attempt = 1;
+
+      while (myRunId === runId && !isPaused) {
         if (currentPage > analysisMaxPages) {
-          updateStatus("Analyse terminée.", "green bold", true);
-          showNotification("Analyse terminée ! Vous pouvez désormais interagir avec les pseudos en cliquant dessus.", "info", 10000);
-          updateSummary();
+          finishAnalysis();
+          return;
         }
-        return;
-      }
 
-      try {
+        if (analyzedPages.has(currentPage)) {
+          currentPage++;
+          continue;
+        }
+
+        if (statusElement.innerHTML !== `<span id="spinner"></span> Analyse en cours...`) {
+          updateStatus("Analyse en cours...", "green", false);
+        }
+
+        const page = currentPage;
+        const requestStart = performance.now();
+        let fetched = null;
+        let error = null;
+
         isPendingRequest = true;
-
-        const pagePromises = pagesToProcess.map(async (page) => {
-          const path = location.pathname.split("-").map((_, i) => i === 3 ? page : _).join("-");
-          try {
-            const response = await fetch(path);
-            if (response.status === 403) {
-              throw new Error(`Erreur 403 sur la page ${page}`);
-            }
-
-            if (response.redirected) {
-              return {
-                page,
-                redirected: true,
-                messagesOnPage: 0,
-                success: true
-              };
-            }
-
-            const body = await response.text();
-            const doc = document.implementation.createHTMLDocument();
-            doc.documentElement.innerHTML = body;
-            let messagesOnPage = 0;
-
-            doc.querySelectorAll(".messageUser").forEach((messageElement) => {
-
-              const pseudo = messageElement.querySelector(".messageUser__label")?.textContent.trim() || "Pseudo supprimé";
-
-              messagesCount.set(pseudo, (messagesCount.get(pseudo) || 0) + 1);
-              messagesOnPage++;
-
-              const avatarElem = messageElement.querySelector(".avatar__image");
-              const avatarUrl = avatarElem ? avatarElem.src : "";
-              if (avatarUrl && !userAvatars.has(pseudo)) {
-                userAvatars.set(pseudo, avatarUrl);
-              }
-
-              const dateElement = messageElement.querySelector(".messageUser__date");
-              let messageDate = dateElement ? dateElement.textContent.trim() : null;
-
-              if (!userStats.has(pseudo)) {
-                userStats.set(pseudo, {
-                  totalChars: 0,
-                  messageCount: 0,
-                  averageChars: 0,
-                  stickerCount: 0,
-                  smileyCount: 0,
-                  messageDates: new Map(),
-                  stickerUrls: new Map(),
-                  wordCount: new Map()
-                });
-              }
-
-              const stats = userStats.get(pseudo);
-              stats.messageCount++;
-
-              if (messageDate) {
-                stats.messageDates.set(messageDate, (stats.messageDates.get(messageDate) || 0) + 1);
-              }
-
-              const messageContent = messageElement.querySelector(".messageUser__msg");
-
-              if (messageContent) {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = messageContent.innerHTML;
-                tempDiv.querySelectorAll('blockquote').forEach(bq => bq.remove());
-
-                const stickerRegex = /noelshack\.com/i;
-                const smileyRegex = /smileys_img/i;
-
-                let stickersFound = 0;
-                let smileysFound = 0;
-
-                tempDiv.querySelectorAll('img').forEach(img => {
-                  const src = img.getAttribute('src');
-                  if (!src) return;
-
-                  if (stickerRegex.test(src) || src.includes("image.jeuxvideo.com/stickers")) {
-                    stickersFound++;
-                    const normSrc = src.startsWith('//') ? 'https:' + src : src;
-                    globalStickerCount.set(normSrc, (globalStickerCount.get(normSrc) || 0) + 1);
-                    stats.stickerUrls.set(normSrc, (stats.stickerUrls.get(normSrc) || 0) + 1);
-                  } else if (smileyRegex.test(src)) {
-                    smileysFound++;
-                  }
-                });
-
-                stats.stickerCount += stickersFound;
-                stats.smileyCount += smileysFound;
-                tempDiv.querySelectorAll('a').forEach(a => a.remove());
-
-                const textOnly = tempDiv.textContent.trim();
-
-                stats.totalChars += textOnly.length;
-                stats.averageChars = Math.round(stats.totalChars / stats.messageCount);
-
-                const stopWords = new Set([
-                  'le','la','les','de','du','des','un','une','et','en','au','aux','à','a','ce','se','sa','son','ses','mon','ma','mes','ton','ta','tes','on','il','ils','elle','elles','je','tu','nous','vous','qui','que','qu','ça','c','j','y','n','m','s','l','d','si','ne','pas','plus','par','sur','dans','avec','pour','mais','ou','donc','or','ni','car','est','était','sont','être','avoir','je','me','te','lui','leur','tout','tous','très','bien','comme','quand','car','même','après','avant','aussi','non','oui','plus','moins','encore','déjà','toujours','jamais','rien','quelque','autre','autres','cette','cet','ces','va','vais','fait','faire','dit','dire','peut','peu','sous','dont','chez','entre','vers','alors','ainsi','car','etc',
-                  'http','https','www','com','net','org','fr','php','html','jpg','png','gif','svg']);
-                const wordTokens = textOnly.toLowerCase().match(/\b[a-zàâäéèêëîïôöùûüç]{3,}\b/g) || [];
-                wordTokens.forEach(w => {
-                  if (!stopWords.has(w)) {
-                    globalWordCount.set(w, (globalWordCount.get(w) || 0) + 1);
-                    stats.wordCount.set(w, (stats.wordCount.get(w) || 0) + 1);
-                  }
-                });
-
-                const avatarElem = messageElement.querySelector(".avatar__image");
-                const avatarUrl = avatarElem ? avatarElem.src : "";
-
-                const messageId = messageElement.id?.replace("message-", "") || null;
-                const messageLink = messageId ? `https://www.jeuxvideo.com/forums/message/${messageId}` : "";
-
-                allMessages.push({
-                  pseudo,
-                  avatar: avatarUrl,
-                  link: messageLink,
-                  text: textOnly
-                });
-              }
-            });
-
-            return {
-              page,
-              redirected: false,
-              messagesOnPage,
-              success: true
-            };
-
-          } catch (error) {
-            return {
-              page,
-              success: false,
-              error: error.message
-            };
-          }
-        });
-
-        const results = await Promise.allSettled(pagePromises);
-
-        let has403Error = false;
-        let pagesProcessed = 0;
-        let failedPages = [];
-
-        results.forEach((result, index) => {
-          const page = pagesToProcess[index];
-
-          if (result.status === "fulfilled" && result.value.success) {
-            const {
-              redirected,
-              messagesOnPage
-            } = result.value;
-
-            analyzedPages.add(page);
-            pagesProcessed++;
-
-            if (!redirected) {
-              totalMessages += messagesOnPage;
-              totalPages++;
-            }
-
-          } else if (result.status === "fulfilled") {
-            if (result.value.error.includes("Erreur 403")) {
-              has403Error = true;
-            } else {
-              failedPages.push(page);
-            }
-
-          } else {
-            failedPages.push(page);
-          }
-        });
-
+        try {
+          fetched = await fetchPage(page);
+        } catch (e) {
+          error = e;
+        }
         isPendingRequest = false;
+        const requestDuration = performance.now() - requestStart;
 
-        if (has403Error) {
-          currentPage = originalCurrentPage;
+        if (myRunId !== runId) return;
+
+        if (error && error.is403) {
           isPaused = true;
-
           updateStatus("Erreur 403 : Veuillez résoudre le CAPTCHA Cloudflare puis cliquer sur Reprendre.", "red", true);
           showNotification("Erreur 403 détectée.", "error", 10000);
           updateSummary();
           return;
         }
 
-        if (pagesProcessed > 0) {
-          updateProgress();
-          updateResults();
-          updateSummary();
-        }
+        if (error) {
+          console.error("Erreur sur la page " + page + " :", error);
 
-        const allRedirected = pagesProcessed === pagesToProcess.length &&
-          results.every(r => r.status === "fulfilled" && r.value.success && r.value.redirected);
-
-        if (allRedirected && currentPage > analysisMaxPages) {
-          updateStatus("Analyse terminée.", "green bold", true);
-          showNotification("Analyse terminée ! Vous pouvez désormais interagir avec les pseudos en cliquant dessus.", "info", 10000);
-          updateSummary();
-          return;
-        }
-
-        if (failedPages.length > 0 && attempt < 50) {
-          currentPage = originalCurrentPage;
-
-          updateStatus(`Erreur réseau sur ${failedPages.length} page(s), tentative ${attempt}/50.`, "orange", false);
-          showNotification(`Erreur réseau sur ${failedPages.length} page(s), tentative ${attempt}/50.`, "warning", 5000);
-
-          const delay = Math.min(2 ** attempt * 100, 5000);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          const retryPages = failedPages.filter(p => !analyzedPages.has(p));
-
-          if (retryPages.length > 0) {
-            currentPage = Math.min(...retryPages);
-            return handlePage(attempt + 1);
+          if (attempt >= 50) {
+            updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red", true);
+            showNotification(`Erreur fatale sur la page ${page} après 50 tentatives.`, "error", 30000000);
+            updateSummary();
+            return;
           }
 
-        } else if (failedPages.length > 0) {
-          currentPage = originalCurrentPage;
-
-          updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red", true);
-          showNotification(`Erreur fatale sur ${failedPages.length} page(s) après 50 tentatives.`, "error", 30000000);
-          updateSummary();
-          return;
-        }
-
-        if (!isPaused) {
-          handlePage(1);
-        } else {
-          updateStatus("Analyse mise en pause.", "orange", true);
-          updateSummary();
-        }
-
-      } catch (error) {
-        console.error("Erreur globale :", error);
-
-        currentPage = originalCurrentPage;
-        isPendingRequest = false;
-
-        if (attempt < 50) {
-          updateStatus(`Erreur, tentative ${attempt}/50...`, "orange", false);
+          updateStatus(`Erreur réseau sur la page ${page}, tentative ${attempt}/50.`, "orange", false);
+          showNotification(`Erreur réseau sur la page ${page}, tentative ${attempt}/50.`, "warning", 5000);
 
           const delay = Math.min(2 ** attempt * 100, 5000);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          attempt++;
+          await sleep(delay);
+          continue;
+        }
 
-          handlePage(attempt + 1);
-        } else {
-          updateStatus("Analyse interrompue en raison d'erreurs répétées.", "red", true);
-          showNotification(`Erreur fatale : ${error.message}`, "error", 30000000);
-          updateSummary();
+        const counter = { count: 0 };
+        if (!fetched.redirected) {
+          try {
+            parsePageDocument(fetched.doc, counter);
+          } catch (parseError) {
+            console.error("Erreur d'analyse de la page " + page + " :", parseError);
+          }
+          totalMessages += counter.count;
+          totalPages++;
+        }
+
+        analyzedPages.add(page);
+        currentPage = page + 1;
+        attempt = 1;
+
+        requestDurations.push(requestDuration);
+        if (requestDurations.length > 10) requestDurations.shift();
+
+        updateProgress();
+        updateResults();
+        updateSummary();
+
+        if (currentPage > analysisMaxPages) continue;
+
+        if (!turboMode && !isPaused) {
+          await sleep(request_Interval_Ms, true);
         }
       }
+
+      if (myRunId === runId && isPaused) {
+        updateStatus("Analyse mise en pause.", "orange", true);
+        updateResults();
+        updateSummary();
+      }
     }
+
+    updateSummary();
+    startAnalysisLoop();
 
     function updateResults() {
       resultsTable.innerHTML = "";
@@ -1495,6 +1538,7 @@
         }
         resultsTable.appendChild(row);
       });
+      scheduleTopicStatsRefresh();
     }
 
     function calculateSimilarity(str1, str2) {
@@ -1534,7 +1578,9 @@
         averageChars: stats.averageChars,
         stickerCount: stats.stickerCount || 0,
         smileyCount: stats.smileyCount || 0,
-        messageDates: new Map(stats.messageDates)
+        messageDates: new Map(stats.messageDates),
+        stickerUrls: new Map(stats.stickerUrls || []),
+        wordCount: new Map(stats.wordCount || [])
       };
     }
 
@@ -1557,10 +1603,14 @@
             averageChars: 0,
             stickerCount: 0,
             smileyCount: 0,
-            messageDates: new Map()
+            messageDates: new Map(),
+            stickerUrls: new Map(),
+            wordCount: new Map()
           });
         }
         const targetStats = userStats.get(targetPseudo);
+        if (!targetStats.stickerUrls) targetStats.stickerUrls = new Map();
+        if (!targetStats.wordCount) targetStats.wordCount = new Map();
 
         targetStats.totalChars += sourceStats.totalChars;
         targetStats.messageCount += sourceStats.messageCount;
@@ -1570,6 +1620,12 @@
 
         for (const [date, c] of sourceStats.messageDates) {
           targetStats.messageDates.set(date, (targetStats.messageDates.get(date) || 0) + c);
+        }
+        for (const [url, c] of (sourceStats.stickerUrls || [])) {
+          targetStats.stickerUrls.set(url, (targetStats.stickerUrls.get(url) || 0) + c);
+        }
+        for (const [w, c] of (sourceStats.wordCount || [])) {
+          targetStats.wordCount.set(w, (targetStats.wordCount.get(w) || 0) + c);
         }
 
         userStats.delete(sourcePseudo);
@@ -2481,9 +2537,41 @@
 
   window.showActivityModal = showActivityModal;
 
+  function closeTopicStatsModal() {
+    if (topicStatsOverlay) {
+      topicStatsOverlay.remove();
+      topicStatsOverlay = null;
+    }
+    if (topicStatsEscHandler) {
+      document.removeEventListener("keydown", topicStatsEscHandler);
+      topicStatsEscHandler = null;
+    }
+    if (topicStatsTimer) {
+      clearTimeout(topicStatsTimer);
+      topicStatsTimer = null;
+    }
+    topicStatsRefresh = null;
+  }
+
+  function scheduleTopicStatsRefresh() {
+    if (!topicStatsRefresh || topicStatsTimer) return;
+    topicStatsTimer = setTimeout(() => {
+      topicStatsTimer = null;
+      if (topicStatsRefresh) topicStatsRefresh();
+    }, 250);
+  }
+
   function showTopicStatsModal() {
+    if (topicStatsOverlay) {
+      closeTopicStatsModal();
+      return;
+    }
+
     let currentTopicTab = 'stickers';
     let selectedUser = null;
+    let renderToken = 0;
+    let dropdownOpen = false;
+    let visibleItems = [];
 
     const overlay = document.createElement("div");
     Object.assign(overlay.style, {
@@ -2491,6 +2579,7 @@
       backgroundColor: "rgba(0,0,0,0.85)", zIndex: "200",
       display: "flex", alignItems: "center", justifyContent: "center"
     });
+    topicStatsOverlay = overlay;
 
     const modal = document.createElement("div");
     Object.assign(modal.style, {
@@ -2513,41 +2602,134 @@
     header.appendChild(titleEl);
 
     const userSelectorWrapper = document.createElement("div");
-    Object.assign(userSelectorWrapper.style, { display: "flex", alignItems: "center", gap: "8px" });
+    Object.assign(userSelectorWrapper.style, { position: "relative" });
 
-    const userLabel = document.createElement("span");
-    //userLabel.textContent = "Utilisateur :";
-    Object.assign(userLabel.style, { color: "#b9bbbe", fontSize: "13px", whiteSpace: "nowrap" });
-    userSelectorWrapper.appendChild(userLabel);
-
-    const userSelect = document.createElement("select");
-    Object.assign(userSelect.style, {
-      padding: "6px 10px", borderRadius: "6px", border: "1px solid #40444b",
-      background: "#1e1f22", color: "#ffffff", fontSize: "13px", cursor: "pointer",
-      maxWidth: "200px"
+    const userButton = document.createElement("button");
+    Object.assign(userButton.style, {
+      width: "230px", margin: "0", padding: "8px 12px", fontSize: "13px",
+      textAlign: "left", fontWeight: "normal", background: "#1e1f22",
+      border: "1px solid #40444b", borderRadius: "6px", boxShadow: "none",
+      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"
     });
 
-    const sortedUsers = [...messagesCount.entries()].sort((a, b) => b[1] - a[1]);
-    const optGlobal = document.createElement("option");
-    optGlobal.value = "";
-    optGlobal.textContent = "🌐 Topic entier";
-    userSelect.appendChild(optGlobal);
-    sortedUsers.forEach(([pseudo]) => {
-      const opt = document.createElement("option");
-      opt.value = pseudo;
-      opt.textContent = pseudo;
-      userSelect.appendChild(opt);
+    function updateUserButtonLabel() {
+      userButton.textContent = (selectedUser || "🌐 Topic entier") + "  ▾";
+    }
+    updateUserButtonLabel();
+    userSelectorWrapper.appendChild(userButton);
+
+    const dropdown = document.createElement("div");
+    Object.assign(dropdown.style, {
+      position: "absolute", top: "calc(100% + 6px)", left: "0", width: "280px",
+      background: "#1e1f22", border: "1px solid #40444b", borderRadius: "8px",
+      padding: "8px", zIndex: "10", display: "none", flexDirection: "column",
+      gap: "8px", boxShadow: "0 10px 25px rgba(0,0,0,0.5)"
     });
 
-    userSelect.addEventListener("change", () => {
-      selectedUser = userSelect.value || null;
+    const userSearch = document.createElement("input");
+    userSearch.type = "text";
+    userSearch.placeholder = "Rechercher un pseudo...";
+    Object.assign(userSearch.style, {
+      width: "100%", padding: "8px 10px", border: "1px solid #40444b",
+      borderRadius: "6px", background: "#2c2f33", color: "#ffffff",
+      fontSize: "13px", outline: "none", boxSizing: "border-box"
+    });
+    dropdown.appendChild(userSearch);
+
+    const userList = document.createElement("div");
+    Object.assign(userList.style, { maxHeight: "280px", overflowY: "auto" });
+    dropdown.appendChild(userList);
+    userSelectorWrapper.appendChild(dropdown);
+    header.appendChild(userSelectorWrapper);
+
+    function selectUser(pseudo) {
+      selectedUser = pseudo;
+      closeDropdown();
+      updateUserButtonLabel();
       titleEl.textContent = selectedUser
         ? `Statistiques de ${selectedUser}`
         : "Statistiques globales du topic";
       renderTopicTab();
+    }
+
+    function renderUserList() {
+      const filter = userSearch.value.trim().toLowerCase();
+      userList.innerHTML = "";
+      visibleItems = [];
+
+      if (!filter || "topic entier".includes(filter)) {
+        visibleItems.push({ pseudo: null, label: "🌐 Topic entier" });
+      }
+
+      [...messagesCount.entries()]
+        .filter(([p]) => p.toLowerCase().includes(filter))
+        .sort((a, b) => a[0].localeCompare(b[0], "fr", { sensitivity: "base" }))
+        .forEach(([p, c]) => visibleItems.push({ pseudo: p, label: p, count: c }));
+
+      if (visibleItems.length === 0) {
+        const empty = document.createElement("div");
+        empty.textContent = "Aucun pseudo trouvé";
+        Object.assign(empty.style, { padding: "10px", textAlign: "center", color: "#b9bbbe", fontSize: "13px" });
+        userList.appendChild(empty);
+        return;
+      }
+
+      visibleItems.forEach(item => {
+        const row = document.createElement("div");
+        const isSelected = item.pseudo === selectedUser;
+        Object.assign(row.style, {
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          gap: "8px", padding: "7px 10px", borderRadius: "6px", cursor: "pointer",
+          fontSize: "13px", background: isSelected ? "#3b4048" : "transparent"
+        });
+
+        const name = document.createElement("span");
+        name.textContent = item.label;
+        Object.assign(name.style, { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" });
+        row.appendChild(name);
+
+        if (item.count !== undefined) {
+          const cnt = document.createElement("span");
+          cnt.textContent = item.count;
+          Object.assign(cnt.style, { color: "#b9bbbe", fontSize: "11px", flexShrink: "0" });
+          row.appendChild(cnt);
+        }
+
+        row.addEventListener("mouseenter", () => { row.style.background = "#2b2d31"; });
+        row.addEventListener("mouseleave", () => { row.style.background = isSelected ? "#3b4048" : "transparent"; });
+        row.addEventListener("click", () => selectUser(item.pseudo));
+        userList.appendChild(row);
+      });
+    }
+
+    function openDropdown() {
+      dropdownOpen = true;
+      dropdown.style.display = "flex";
+      userSearch.value = "";
+      renderUserList();
+      userSearch.focus();
+    }
+
+    function closeDropdown() {
+      dropdownOpen = false;
+      dropdown.style.display = "none";
+    }
+
+    userButton.addEventListener("click", () => {
+      if (dropdownOpen) closeDropdown();
+      else openDropdown();
     });
-    userSelectorWrapper.appendChild(userSelect);
-    header.appendChild(userSelectorWrapper);
+
+    userSearch.addEventListener("input", renderUserList);
+    userSearch.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && visibleItems.length > 0) {
+        selectUser(visibleItems[0].pseudo);
+      }
+    });
+
+    overlay.addEventListener("click", (e) => {
+      if (dropdownOpen && !userSelectorWrapper.contains(e.target)) closeDropdown();
+    });
 
     const tabWrapper = document.createElement("div");
     Object.assign(tabWrapper.style, { display: "flex", borderRadius: "8px", padding: "4px", gap: "4px" });
@@ -2573,7 +2755,7 @@
     closeBtn.textContent = "Fermer";
     closeBtn.classList.add("action-button", "red-button");
     Object.assign(closeBtn.style, { padding: "8px 24px", fontSize: "15px" });
-    closeBtn.addEventListener("click", () => overlay.remove());
+    closeBtn.addEventListener("click", closeTopicStatsModal);
     header.appendChild(closeBtn);
 
     modal.appendChild(header);
@@ -2584,7 +2766,13 @@
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
-    window.addEventListener("keydown", (e) => e.key === "Escape" && overlay.remove());
+
+    topicStatsEscHandler = (e) => {
+      if (e.key !== "Escape") return;
+      if (dropdownOpen) closeDropdown();
+      else closeTopicStatsModal();
+    };
+    document.addEventListener("keydown", topicStatsEscHandler);
 
     function getActiveStickerMap() {
       if (!selectedUser) return globalStickerCount;
@@ -2597,6 +2785,9 @@
     }
 
     function renderTopicTab() {
+      const token = ++renderToken;
+      const scroll = contentArea.scrollTop;
+
       ["ttab-stickers", "ttab-words"].forEach(id => {
         const btn = document.getElementById(id);
         if (!btn) return;
@@ -2604,13 +2795,14 @@
         btn.style.background = active ? "#6064f4" : "#1e1f22";
         btn.style.color = "#ffffff";
       });
-      if (currentTopicTab === "stickers") renderStickersTab(contentArea);
+
+      if (currentTopicTab === "stickers") renderStickersTab(contentArea, token);
       else renderWordsTab(contentArea);
+
+      contentArea.scrollTop = scroll;
     }
 
-    async function renderStickersTab(container) {
-      container.innerHTML = `<p style="text-align:center;color:#b9bbbe;">Chargement du graphique…</p>`;
-
+    async function renderStickersTab(container, token) {
       const stickerMap = getActiveStickerMap();
       const top21 = [...stickerMap.entries()]
         .sort((a, b) => b[1] - a[1])
@@ -2680,6 +2872,8 @@
             document.head.appendChild(s);
           });
         }
+        if (token !== renderToken || !canvas.isConnected) return;
+
         const existingChart = Chart.getChart(canvas);
         if (existingChart) existingChart.destroy();
         new Chart(canvas, {
@@ -2694,6 +2888,7 @@
           },
           options: {
             responsive: true, maintainAspectRatio: false,
+            animation: false,
             plugins: {
               legend: { labels: { color: "#b9bbbe" } },
               tooltip: {
@@ -2757,7 +2952,7 @@
         Object.assign(bar.style, {
           width: `${pct}%`, height: "100%",
           background: `hsl(${240 - i * 3}, 70%, 60%)`,
-          borderRadius: "6px", transition: "width 0.4s ease"
+          borderRadius: "6px"
         });
         barWrapper.appendChild(bar);
         row.appendChild(barWrapper);
@@ -2772,6 +2967,16 @@
 
       container.appendChild(list);
     }
+
+    topicStatsRefresh = () => {
+      if (selectedUser && !messagesCount.has(selectedUser)) {
+        selectedUser = null;
+        updateUserButtonLabel();
+        titleEl.textContent = "Statistiques globales du topic";
+      }
+      if (dropdownOpen) renderUserList();
+      renderTopicTab();
+    };
 
     renderTopicTab();
   }
@@ -3266,6 +3471,17 @@
         } else {
           targetStats.messageDates.delete(date);
         }
+      }
+
+      for (const [url, c] of (sourceStats.stickerUrls || [])) {
+        const left = ((targetStats.stickerUrls && targetStats.stickerUrls.get(url)) || 0) - c;
+        if (left > 0) targetStats.stickerUrls.set(url, left);
+        else if (targetStats.stickerUrls) targetStats.stickerUrls.delete(url);
+      }
+      for (const [w, c] of (sourceStats.wordCount || [])) {
+        const left = ((targetStats.wordCount && targetStats.wordCount.get(w)) || 0) - c;
+        if (left > 0) targetStats.wordCount.set(w, left);
+        else if (targetStats.wordCount) targetStats.wordCount.delete(w);
       }
 
       if (targetStats.messageCount <= 0) {
